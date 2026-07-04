@@ -337,6 +337,44 @@ class FNDDSDataAdapter(DataAdapterBase):
                 return gw
         return 100.0
 
+    @staticmethod
+    def load_validation_ids(config_path: str = "config/validation_recipes.json") -> list[int]:
+        """Load the fixed validation set of 200 FDC IDs.
+
+        Args:
+            config_path: Path to the validation recipes JSON file.
+
+        Returns:
+            List of 200 FDC IDs (fixed, seed=42).
+        """
+        import json
+        from pathlib import Path
+
+        path = Path(config_path)
+        if not path.exists():
+            raise FileNotFoundError(
+                f"Validation recipes file not found: {path}. "
+                "Run the sampling script to generate it."
+            )
+        with open(path) as f:
+            data = json.load(f)
+        return data["fdc_ids"]
+
+    def load_validation_set(
+        self, config_path: str = "config/validation_recipes.json"
+    ) -> list[dict]:
+        """Load the 200 sampled validation recipes.
+
+        Returns list of recipe dicts (same format as get_recipe).
+        """
+        ids = self.load_validation_ids(config_path)
+        recipes = []
+        for fdc_id in ids:
+            recipe = self.get_recipe(fdc_id)
+            if recipe is not None:
+                recipes.append(recipe)
+        return recipes
+
     def __len__(self) -> int:
         return len(self._data)
 

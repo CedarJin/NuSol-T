@@ -1,0 +1,1410 @@
+{
+  "description": "200 randomly sampled FNDDS recipes for NuSol-T validation (seed=42)",
+  "total_available": 3829,
+  "n_sampled": 200,
+  "seed": 42,
+  "fdc_ids": [
+    2705438,
+    2705465,
+    2705531,
+    2705537,
+    2705553,
+    2705561,
+    2705562,
+    2705649,
+    2705661,
+    2705666,
+    2705754,
+    2705804,
+    2705815,
+    2705829,
+    2705837,
+    2705874,
+    2705878,
+    2705921,
+    2705937,
+    2705944,
+    2705948,
+    2705967,
+    2705984,
+    2705989,
+    2705990,
+    2706026,
+    2706039,
+    2706052,
+    2706113,
+    2706226,
+    2706236,
+    2706252,
+    2706305,
+    2706320,
+    2706333,
+    2706341,
+    2706347,
+    2706364,
+    2706369,
+    2706403,
+    2706496,
+    2706524,
+    2706569,
+    2706575,
+    2706581,
+    2706593,
+    2706607,
+    2706610,
+    2706611,
+    2706614,
+    2706626,
+    2706645,
+    2706650,
+    2706664,
+    2706665,
+    2706714,
+    2706715,
+    2706722,
+    2706743,
+    2706791,
+    2706800,
+    2706801,
+    2706809,
+    2706810,
+    2706813,
+    2706822,
+    2706843,
+    2706855,
+    2706856,
+    2706908,
+    2706928,
+    2706930,
+    2707018,
+    2707022,
+    2707060,
+    2707115,
+    2707132,
+    2707156,
+    2707206,
+    2707221,
+    2707232,
+    2707233,
+    2707245,
+    2707267,
+    2707302,
+    2707306,
+    2707308,
+    2707315,
+    2707328,
+    2707376,
+    2707394,
+    2707407,
+    2707543,
+    2707555,
+    2707556,
+    2707558,
+    2707603,
+    2707680,
+    2707838,
+    2707860,
+    2707887,
+    2707889,
+    2707910,
+    2708011,
+    2708237,
+    2708274,
+    2708306,
+    2708329,
+    2708417,
+    2708437,
+    2708446,
+    2708449,
+    2708457,
+    2708483,
+    2708484,
+    2708520,
+    2708525,
+    2708541,
+    2708559,
+    2708560,
+    2708592,
+    2708657,
+    2708687,
+    2708691,
+    2708712,
+    2708717,
+    2708741,
+    2708743,
+    2708774,
+    2708781,
+    2708808,
+    2708849,
+    2708886,
+    2708890,
+    2708916,
+    2708919,
+    2708935,
+    2708937,
+    2708941,
+    2708949,
+    2708972,
+    2708979,
+    2709002,
+    2709027,
+    2709064,
+    2709091,
+    2709106,
+    2709107,
+    2709112,
+    2709119,
+    2709124,
+    2709138,
+    2709216,
+    2709250,
+    2709252,
+    2709272,
+    2709357,
+    2709386,
+    2709398,
+    2709450,
+    2709452,
+    2709489,
+    2709513,
+    2709519,
+    2709534,
+    2709542,
+    2709558,
+    2709587,
+    2709605,
+    2709630,
+    2709654,
+    2709655,
+    2709676,
+    2709691,
+    2709825,
+    2709886,
+    2709889,
+    2709894,
+    2709905,
+    2709964,
+    2709999,
+    2710022,
+    2710058,
+    2710086,
+    2710139,
+    2710175,
+    2710177,
+    2710179,
+    2710278,
+    2710314,
+    2710382,
+    2710416,
+    2710417,
+    2710419,
+    2710447,
+    2710474,
+    2710631,
+    2710636,
+    2710668,
+    2710681
+  ],
+  "recipes": [
+    {
+      "fdc_id": 2705438,
+      "description": "Yogurt, Greek, whole milk, flavors other than fruit",
+      "n_ingredients": 4,
+      "food_code": "11435010"
+    },
+    {
+      "fdc_id": 2705465,
+      "description": "Baby Toddler yogurt, with fruit",
+      "n_ingredients": 3,
+      "food_code": "11480100"
+    },
+    {
+      "fdc_id": 2705531,
+      "description": "Infant formula, Similac for Spit-Up, powder, made with water",
+      "n_ingredients": 2,
+      "food_code": "11710383"
+    },
+    {
+      "fdc_id": 2705537,
+      "description": "Infant formula, Enfamil Infant, powder, made with baby water",
+      "n_ingredients": 2,
+      "food_code": "11710639"
+    },
+    {
+      "fdc_id": 2705553,
+      "description": "Infant formula, Gerber Good Start Gentle, Stage 1, powder, made with baby water",
+      "n_ingredients": 2,
+      "food_code": "11710919"
+    },
+    {
+      "fdc_id": 2705561,
+      "description": "Infant formula, store brand, advantage or tender, powder, made with bottled water",
+      "n_ingredients": 2,
+      "food_code": "11710968"
+    },
+    {
+      "fdc_id": 2705562,
+      "description": "Infant formula, store brand, advantage or tender, powder, made with baby water",
+      "n_ingredients": 2,
+      "food_code": "11710969"
+    },
+    {
+      "fdc_id": 2705649,
+      "description": "Ice cream cone, scooped, chocolate, waffle cone",
+      "n_ingredients": 2,
+      "food_code": "13120775"
+    },
+    {
+      "fdc_id": 2705661,
+      "description": "Ice cream sundae, hot fudge topping",
+      "n_ingredients": 3,
+      "food_code": "13121300"
+    },
+    {
+      "fdc_id": 2705666,
+      "description": "Light ice cream, chocolate",
+      "n_ingredients": 2,
+      "food_code": "13130310"
+    },
+    {
+      "fdc_id": 2705754,
+      "description": "Cheese, cottage, salted, dry curd",
+      "n_ingredients": 2,
+      "food_code": "14203020"
+    },
+    {
+      "fdc_id": 2705804,
+      "description": "Grilled cheese sandwich, cheddar cheese, on white bread",
+      "n_ingredients": 3,
+      "food_code": "14640125"
+    },
+    {
+      "fdc_id": 2705815,
+      "description": "Alfredo sauce with seafood",
+      "n_ingredients": 3,
+      "food_code": "14650190"
+    },
+    {
+      "fdc_id": 2705829,
+      "description": "Beef, steak, ribeye, lean and fat eaten",
+      "n_ingredients": 2,
+      "food_code": "21101180"
+    },
+    {
+      "fdc_id": 2705837,
+      "description": "Beef, steak, strip, lean only eaten",
+      "n_ingredients": 3,
+      "food_code": "21103140"
+    },
+    {
+      "fdc_id": 2705874,
+      "description": "Pork, steak, lean and fat eaten",
+      "n_ingredients": 3,
+      "food_code": "22201110"
+    },
+    {
+      "fdc_id": 2705878,
+      "description": "Ham",
+      "n_ingredients": 3,
+      "food_code": "22311000"
+    },
+    {
+      "fdc_id": 2705921,
+      "description": "Groundhog",
+      "n_ingredients": 2,
+      "food_code": "23331100"
+    },
+    {
+      "fdc_id": 2705937,
+      "description": "Chicken, NS as to part, rotisserie, skin not eaten",
+      "n_ingredients": 3,
+      "food_code": "24102070"
+    },
+    {
+      "fdc_id": 2705944,
+      "description": "Chicken, NS as to part, grilled with sauce, NS as to skin eaten",
+      "n_ingredients": 3,
+      "food_code": "24103070"
+    },
+    {
+      "fdc_id": 2705948,
+      "description": "Chicken, NS as to part, sauteed, skin not eaten",
+      "n_ingredients": 3,
+      "food_code": "24104051"
+    },
+    {
+      "fdc_id": 2705967,
+      "description": "Chicken breast, grilled without sauce, skin eaten",
+      "n_ingredients": 2,
+      "food_code": "24123300"
+    },
+    {
+      "fdc_id": 2705984,
+      "description": "Chicken leg, drumstick and thigh, baked or broiled, skin eaten",
+      "n_ingredients": 3,
+      "food_code": "24132230"
+    },
+    {
+      "fdc_id": 2705989,
+      "description": "Chicken leg, drumstick and thigh, stewed, skin not eaten",
+      "n_ingredients": 3,
+      "food_code": "24133220"
+    },
+    {
+      "fdc_id": 2705990,
+      "description": "Chicken leg, drumstick and thigh, grilled without sauce, skin eaten",
+      "n_ingredients": 4,
+      "food_code": "24134100"
+    },
+    {
+      "fdc_id": 2706026,
+      "description": "Chicken drumstick, baked, coated, skin / coating not eaten",
+      "n_ingredients": 3,
+      "food_code": "24147401"
+    },
+    {
+      "fdc_id": 2706039,
+      "description": "Chicken thigh, grilled without sauce, skin eaten",
+      "n_ingredients": 3,
+      "food_code": "24154010"
+    },
+    {
+      "fdc_id": 2706052,
+      "description": "Chicken thigh, fried, coated, skin / coating eaten, from restaurant",
+      "n_ingredients": 4,
+      "food_code": "24157330"
+    },
+    {
+      "fdc_id": 2706113,
+      "description": "Turkey, light and dark meat, roasted, skin not eaten",
+      "n_ingredients": 3,
+      "food_code": "24201320"
+    },
+    {
+      "fdc_id": 2706226,
+      "description": "Fish, NS as to type, baked or broiled, coated",
+      "n_ingredients": 8,
+      "food_code": "26100130"
+    },
+    {
+      "fdc_id": 2706236,
+      "description": "Fish, catfish, grilled",
+      "n_ingredients": 3,
+      "food_code": "26107123"
+    },
+    {
+      "fdc_id": 2706252,
+      "description": "Fish, flounder, fried",
+      "n_ingredients": 4,
+      "food_code": "26115140"
+    },
+    {
+      "fdc_id": 2706305,
+      "description": "Fish, trout, baked or broiled, coated",
+      "n_ingredients": 4,
+      "food_code": "26151130"
+    },
+    {
+      "fdc_id": 2706320,
+      "description": "Fish, tilapia, grilled",
+      "n_ingredients": 3,
+      "food_code": "26158013"
+    },
+    {
+      "fdc_id": 2706333,
+      "description": "Calamari, cooked",
+      "n_ingredients": 3,
+      "food_code": "26213120"
+    },
+    {
+      "fdc_id": 2706341,
+      "description": "Clams, fried",
+      "n_ingredients": 4,
+      "food_code": "26303140"
+    },
+    {
+      "fdc_id": 2706347,
+      "description": "Crayfish, fried",
+      "n_ingredients": 4,
+      "food_code": "26309140"
+    },
+    {
+      "fdc_id": 2706364,
+      "description": "Shrimp, fried",
+      "n_ingredients": 4,
+      "food_code": "26319140"
+    },
+    {
+      "fdc_id": 2706369,
+      "description": "Barbecue meat, NFS",
+      "n_ingredients": 2,
+      "food_code": "27100100"
+    },
+    {
+      "fdc_id": 2706403,
+      "description": "Ham or pork with mushroom sauce",
+      "n_ingredients": 4,
+      "food_code": "27120090"
+    },
+    {
+      "fdc_id": 2706496,
+      "description": "Porcupine balls with mushroom sauce",
+      "n_ingredients": 6,
+      "food_code": "27213420"
+    },
+    {
+      "fdc_id": 2706524,
+      "description": "Lamb or mutton and noodles with gravy",
+      "n_ingredients": 4,
+      "food_code": "27233000"
+    },
+    {
+      "fdc_id": 2706569,
+      "description": "Seafood souffle",
+      "n_ingredients": 8,
+      "food_code": "27250550"
+    },
+    {
+      "fdc_id": 2706575,
+      "description": "Fish and rice with mushroom sauce",
+      "n_ingredients": 6,
+      "food_code": "27250830"
+    },
+    {
+      "fdc_id": 2706581,
+      "description": "Meat loaf made with beef and pork",
+      "n_ingredients": 8,
+      "food_code": "27260080"
+    },
+    {
+      "fdc_id": 2706593,
+      "description": "Stew, beef, with pasta",
+      "n_ingredients": 5,
+      "food_code": "27311430"
+    },
+    {
+      "fdc_id": 2706607,
+      "description": "Beef chow mein or chop suey with noodles",
+      "n_ingredients": 3,
+      "food_code": "27313110"
+    },
+    {
+      "fdc_id": 2706610,
+      "description": "Beef, noodles, and vegetables including carrots, broccoli, and/or dark-green leafy; tomato-based sauce",
+      "n_ingredients": 7,
+      "food_code": "27313210"
+    },
+    {
+      "fdc_id": 2706611,
+      "description": "Beef, noodles, and vegetables excluding carrots, broccoli, and dark-green leafy; tomato-based sauce",
+      "n_ingredients": 7,
+      "food_code": "27313220"
+    },
+    {
+      "fdc_id": 2706614,
+      "description": "Beef, noodles, and vegetables including carrots, broccoli, and/or dark-green leafy; gravy",
+      "n_ingredients": 7,
+      "food_code": "27313410"
+    },
+    {
+      "fdc_id": 2706626,
+      "description": "Beef, rice, and vegetables including carrots, broccoli, and/or dark-green leafy; gravy",
+      "n_ingredients": 7,
+      "food_code": "27315410"
+    },
+    {
+      "fdc_id": 2706645,
+      "description": "Pork, potatoes, and vegetables including carrots, broccoli, and/or dark-green leafy; gravy",
+      "n_ingredients": 7,
+      "food_code": "27320140"
+    },
+    {
+      "fdc_id": 2706650,
+      "description": "Pork, rice, and vegetables excluding carrots, broccoli, and dark-green leafy; soy-based sauce",
+      "n_ingredients": 12,
+      "food_code": "27320330"
+    },
+    {
+      "fdc_id": 2706664,
+      "description": "Venison or deer, noodles, and vegetables including carrots, broccoli, and/or dark-green leafy; tomato-based sauce",
+      "n_ingredients": 7,
+      "food_code": "27336300"
+    },
+    {
+      "fdc_id": 2706665,
+      "description": "Venison or deer, noodles, and vegetables excluding carrots, broccoli, and dark-green leafy; tomato-based sauce",
+      "n_ingredients": 7,
+      "food_code": "27336310"
+    },
+    {
+      "fdc_id": 2706714,
+      "description": "Tuna noodle casserole with vegetables, cream or white sauce",
+      "n_ingredients": 8,
+      "food_code": "27350080"
+    },
+    {
+      "fdc_id": 2706715,
+      "description": "Fish, noodles, and vegetables including carrots, broccoli, and/or dark green leafy; cheese sauce",
+      "n_ingredients": 6,
+      "food_code": "27350090"
+    },
+    {
+      "fdc_id": 2706722,
+      "description": "Chow mein or chop suey, NS as to type of meat, with noodles",
+      "n_ingredients": 3,
+      "food_code": "27360080"
+    },
+    {
+      "fdc_id": 2706743,
+      "description": "Kung Pao beef",
+      "n_ingredients": 15,
+      "food_code": "27415170"
+    },
+    {
+      "fdc_id": 2706791,
+      "description": "Chicken or turkey and vegetables excluding carrots, broccoli, and dark-green leafy; no potatoes, soy-based sauce",
+      "n_ingredients": 11,
+      "food_code": "27445120"
+    },
+    {
+      "fdc_id": 2706800,
+      "description": "Chicken or turkey salad with nuts and/or fruits",
+      "n_ingredients": 7,
+      "food_code": "27446205"
+    },
+    {
+      "fdc_id": 2706801,
+      "description": "Chicken or turkey salad with egg",
+      "n_ingredients": 6,
+      "food_code": "27446220"
+    },
+    {
+      "fdc_id": 2706809,
+      "description": "Chicken or turkey salad, made with any type of fat free dressing",
+      "n_ingredients": 5,
+      "food_code": "27446260"
+    },
+    {
+      "fdc_id": 2706810,
+      "description": "Chicken or turkey garden salad, chicken and/or turkey, tomato and/or carrots, other vegetables, no dressing",
+      "n_ingredients": 7,
+      "food_code": "27446300"
+    },
+    {
+      "fdc_id": 2706813,
+      "description": "Chicken or turkey, breaded, fried, garden salad with bacon and cheese, chicken and/or turkey, bacon, cheese, lettuce and/or greens, tomato and/or carrots, other vegetables, no dressing",
+      "n_ingredients": 9,
+      "food_code": "27446320"
+    },
+    {
+      "fdc_id": 2706822,
+      "description": "Chicken or turkey fricassee, with sauce, no potatoes, potatoes reported separately, Puerto Rican style",
+      "n_ingredients": 12,
+      "food_code": "27448020"
+    },
+    {
+      "fdc_id": 2706843,
+      "description": "Crab salad made with imitation crab",
+      "n_ingredients": 5,
+      "food_code": "27450130"
+    },
+    {
+      "fdc_id": 2706855,
+      "description": "Shrimp shish kabob with vegetables, excluding potatoes",
+      "n_ingredients": 11,
+      "food_code": "27450430"
+    },
+    {
+      "fdc_id": 2706856,
+      "description": "Shrimp creole, no rice",
+      "n_ingredients": 6,
+      "food_code": "27450450"
+    },
+    {
+      "fdc_id": 2706908,
+      "description": "Double cheeseburger, on wheat bun, 2 medium patties",
+      "n_ingredients": 4,
+      "food_code": "27510258"
+    },
+    {
+      "fdc_id": 2706928,
+      "description": "Hamburger, on wheat bun, 1 small patty",
+      "n_ingredients": 3,
+      "food_code": "27510576"
+    },
+    {
+      "fdc_id": 2706930,
+      "description": "Hamburger, from fast food, 1 large patty",
+      "n_ingredients": 3,
+      "food_code": "27510605"
+    },
+    {
+      "fdc_id": 2707018,
+      "description": "Turkey or chicken burger, on white bun",
+      "n_ingredients": 3,
+      "food_code": "27545100"
+    },
+    {
+      "fdc_id": 2707022,
+      "description": "Crab cake sandwich",
+      "n_ingredients": 2,
+      "food_code": "27550110"
+    },
+    {
+      "fdc_id": 2707060,
+      "description": "Hot dog sandwich, beef, on white bun",
+      "n_ingredients": 2,
+      "food_code": "27564060"
+    },
+    {
+      "fdc_id": 2707115,
+      "description": "Chicken in soy-based sauce, rice and vegetables, frozen meal",
+      "n_ingredients": 15,
+      "food_code": "28143200"
+    },
+    {
+      "fdc_id": 2707132,
+      "description": "Soup, broth",
+      "n_ingredients": 2,
+      "food_code": "28340120"
+    },
+    {
+      "fdc_id": 2707156,
+      "description": "Egg, whole, fried no added fat",
+      "n_ingredients": 2,
+      "food_code": "31105010"
+    },
+    {
+      "fdc_id": 2707206,
+      "description": "Egg omelet or scrambled egg, from fast food / restaurant",
+      "n_ingredients": 3,
+      "food_code": "32130080"
+    },
+    {
+      "fdc_id": 2707221,
+      "description": "Egg omelet or scrambled egg, with cheese and meat, NS as to fat",
+      "n_ingredients": 5,
+      "food_code": "32130290"
+    },
+    {
+      "fdc_id": 2707232,
+      "description": "Egg omelet or scrambled egg, with dark-green vegetables, fat added",
+      "n_ingredients": 4,
+      "food_code": "32130430"
+    },
+    {
+      "fdc_id": 2707233,
+      "description": "Egg omelet or scrambled egg, with dark-green vegetables, no added fat",
+      "n_ingredients": 3,
+      "food_code": "32130440"
+    },
+    {
+      "fdc_id": 2707245,
+      "description": "Egg omelet or scrambled egg, with cheese and dark-green vegetables, no added fat",
+      "n_ingredients": 4,
+      "food_code": "32130640"
+    },
+    {
+      "fdc_id": 2707267,
+      "description": "Egg omelet or scrambled egg, with cheese, meat, and tomatoes, NS as to fat",
+      "n_ingredients": 6,
+      "food_code": "32131020"
+    },
+    {
+      "fdc_id": 2707302,
+      "description": "Egg substitute, omelet, scrambled, or fried, with vegetables",
+      "n_ingredients": 4,
+      "food_code": "33401200"
+    },
+    {
+      "fdc_id": 2707306,
+      "description": "Egg substitute, omelet, scrambled, or fried, with cheese, meat, and vegetables",
+      "n_ingredients": 6,
+      "food_code": "33401600"
+    },
+    {
+      "fdc_id": 2707308,
+      "description": "Egg sandwich on white bread, with cheese",
+      "n_ingredients": 3,
+      "food_code": "34001110"
+    },
+    {
+      "fdc_id": 2707315,
+      "description": "Egg sandwich on English muffin",
+      "n_ingredients": 3,
+      "food_code": "34001300"
+    },
+    {
+      "fdc_id": 2707328,
+      "description": "Egg sandwich on bagel",
+      "n_ingredients": 3,
+      "food_code": "34001600"
+    },
+    {
+      "fdc_id": 2707376,
+      "description": "Pinto beans, from canned, reduced sodium",
+      "n_ingredients": 2,
+      "food_code": "41104110"
+    },
+    {
+      "fdc_id": 2707394,
+      "description": "Beans and tomatoes, fat added",
+      "n_ingredients": 5,
+      "food_code": "41202510"
+    },
+    {
+      "fdc_id": 2707407,
+      "description": "Beans with meat, NS as to type",
+      "n_ingredients": 3,
+      "food_code": "41208100"
+    },
+    {
+      "fdc_id": 2707543,
+      "description": "Peanut butter and jelly",
+      "n_ingredients": 2,
+      "food_code": "42203000"
+    },
+    {
+      "fdc_id": 2707555,
+      "description": "Peanut butter and jelly sandwich, with regular peanut butter, regular jelly, on white bread",
+      "n_ingredients": 3,
+      "food_code": "42302015"
+    },
+    {
+      "fdc_id": 2707556,
+      "description": "Peanut butter and jelly sandwich, with regular peanut butter, regular jelly, on wheat bread",
+      "n_ingredients": 3,
+      "food_code": "42302020"
+    },
+    {
+      "fdc_id": 2707558,
+      "description": "Peanut butter and jelly sandwich, with reduced fat peanut butter, on wheat bread",
+      "n_ingredients": 3,
+      "food_code": "42302060"
+    },
+    {
+      "fdc_id": 2707603,
+      "description": "Bread, white with whole wheat swirl, toasted",
+      "n_ingredients": 2,
+      "food_code": "51102020"
+    },
+    {
+      "fdc_id": 2707680,
+      "description": "Croissant, chocolate",
+      "n_ingredients": 2,
+      "food_code": "51166200"
+    },
+    {
+      "fdc_id": 2707838,
+      "description": "Muffin, bran with fruit, lowfat",
+      "n_ingredients": 13,
+      "food_code": "52304040"
+    },
+    {
+      "fdc_id": 2707860,
+      "description": "Cake or cupcake, coconut",
+      "n_ingredients": 3,
+      "food_code": "53104400"
+    },
+    {
+      "fdc_id": 2707887,
+      "description": "Cake or cupcake, strawberry",
+      "n_ingredients": 3,
+      "food_code": "53118110"
+    },
+    {
+      "fdc_id": 2707889,
+      "description": "Cake, tres leche",
+      "n_ingredients": 7,
+      "food_code": "53118550"
+    },
+    {
+      "fdc_id": 2707910,
+      "description": "Cookie, chocolate chip, made from home recipe or purchased at a bakery",
+      "n_ingredients": 10,
+      "food_code": "53206020"
+    },
+    {
+      "fdc_id": 2708011,
+      "description": "Pie, pumpkin",
+      "n_ingredients": 7,
+      "food_code": "53347000"
+    },
+    {
+      "fdc_id": 2708237,
+      "description": "Popcorn, ready-to-eat, flavored, light",
+      "n_ingredients": 3,
+      "food_code": "54403088"
+    },
+    {
+      "fdc_id": 2708274,
+      "description": "Pretzels, soft, ready-to-eat, coated or flavored",
+      "n_ingredients": 4,
+      "food_code": "54408422"
+    },
+    {
+      "fdc_id": 2708306,
+      "description": "Pancakes, fruit",
+      "n_ingredients": 7,
+      "food_code": "55103000"
+    },
+    {
+      "fdc_id": 2708329,
+      "description": "Waffle, whole grain",
+      "n_ingredients": 5,
+      "food_code": "55205000"
+    },
+    {
+      "fdc_id": 2708417,
+      "description": "Rice, sweet, cooked with honey",
+      "n_ingredients": 3,
+      "food_code": "56205070"
+    },
+    {
+      "fdc_id": 2708437,
+      "description": "Cream of wheat, instant, made with water, fat added",
+      "n_ingredients": 4,
+      "food_code": "56207060"
+    },
+    {
+      "fdc_id": 2708446,
+      "description": "Cereal, O's, flavored",
+      "n_ingredients": 11,
+      "food_code": "57103100"
+    },
+    {
+      "fdc_id": 2708449,
+      "description": "Cereal, chocolate puffs",
+      "n_ingredients": 13,
+      "food_code": "57124200"
+    },
+    {
+      "fdc_id": 2708457,
+      "description": "Cereal, shredded wheat, flavored",
+      "n_ingredients": 5,
+      "food_code": "57214000"
+    },
+    {
+      "fdc_id": 2708483,
+      "description": "Cereal, other, fruit flavored",
+      "n_ingredients": 2,
+      "food_code": "57420120"
+    },
+    {
+      "fdc_id": 2708484,
+      "description": "Cereal, other, chocolate",
+      "n_ingredients": 2,
+      "food_code": "57420130"
+    },
+    {
+      "fdc_id": 2708520,
+      "description": "Taco, corn tortilla, chicken, with beans, cheese",
+      "n_ingredients": 7,
+      "food_code": "58102060"
+    },
+    {
+      "fdc_id": 2708525,
+      "description": "Taco, flour tortilla, pork, with beans, cheese",
+      "n_ingredients": 6,
+      "food_code": "58102140"
+    },
+    {
+      "fdc_id": 2708541,
+      "description": "Burrito, pork, with beans, cheese",
+      "n_ingredients": 6,
+      "food_code": "58102430"
+    },
+    {
+      "fdc_id": 2708559,
+      "description": "Burrito bowl, beef or pork, with beans and rice",
+      "n_ingredients": 6,
+      "food_code": "58102740"
+    },
+    {
+      "fdc_id": 2708560,
+      "description": "Burrito bowl, chicken",
+      "n_ingredients": 4,
+      "food_code": "58102750"
+    },
+    {
+      "fdc_id": 2708592,
+      "description": "Quesadilla, beef or pork",
+      "n_ingredients": 6,
+      "food_code": "58104730"
+    },
+    {
+      "fdc_id": 2708657,
+      "description": "Pizza with extra meat, thin crust",
+      "n_ingredients": 5,
+      "food_code": "58106650"
+    },
+    {
+      "fdc_id": 2708687,
+      "description": "Pizza, cheese, whole wheat thin crust",
+      "n_ingredients": 5,
+      "food_code": "58109015"
+    },
+    {
+      "fdc_id": 2708691,
+      "description": "Pizza, cheese and vegetables, whole wheat thin crust",
+      "n_ingredients": 8,
+      "food_code": "58109050"
+    },
+    {
+      "fdc_id": 2708712,
+      "description": "Empanada, beef, with vegetables",
+      "n_ingredients": 8,
+      "food_code": "58116120"
+    },
+    {
+      "fdc_id": 2708717,
+      "description": "Bacalaitos fritos",
+      "n_ingredients": 5,
+      "food_code": "58117410"
+    },
+    {
+      "fdc_id": 2708741,
+      "description": "Turnover, seafood",
+      "n_ingredients": 6,
+      "food_code": "58126275"
+    },
+    {
+      "fdc_id": 2708743,
+      "description": "Turnover or breakfast pocket, egg",
+      "n_ingredients": 6,
+      "food_code": "58126400"
+    },
+    {
+      "fdc_id": 2708774,
+      "description": "Ravioli, cheese and spinach filled, with tomato sauce",
+      "n_ingredients": 10,
+      "food_code": "58131610"
+    },
+    {
+      "fdc_id": 2708781,
+      "description": "Stuffed shells, cheese-filled, with meat sauce",
+      "n_ingredients": 14,
+      "food_code": "58134130"
+    },
+    {
+      "fdc_id": 2708808,
+      "description": "Pad Thai with meat",
+      "n_ingredients": 16,
+      "food_code": "58137250"
+    },
+    {
+      "fdc_id": 2708849,
+      "description": "Pasta with tomato-based sauce and seafood, restaurant",
+      "n_ingredients": 4,
+      "food_code": "58146361"
+    },
+    {
+      "fdc_id": 2708886,
+      "description": "Pasta, whole grain, with tomato-based sauce and meat, home recipe",
+      "n_ingredients": 2,
+      "food_code": "58146622"
+    },
+    {
+      "fdc_id": 2708890,
+      "description": "Pasta, whole grain, with tomato-based sauce, meat, and added vegetables, ready-to-heat",
+      "n_ingredients": 4,
+      "food_code": "58146633"
+    },
+    {
+      "fdc_id": 2708916,
+      "description": "Pasta, whole grain, with cream sauce and poultry, home recipe",
+      "n_ingredients": 2,
+      "food_code": "58146722"
+    },
+    {
+      "fdc_id": 2708919,
+      "description": "Pasta, whole grain, with cream sauce, poultry, and added vegetables, home recipe",
+      "n_ingredients": 2,
+      "food_code": "58146732"
+    },
+    {
+      "fdc_id": 2708935,
+      "description": "Macaroni or pasta salad, made with light mayonnaise-type salad dressing",
+      "n_ingredients": 7,
+      "food_code": "58148113"
+    },
+    {
+      "fdc_id": 2708937,
+      "description": "Macaroni or pasta salad, made with light Italian dressing",
+      "n_ingredients": 7,
+      "food_code": "58148115"
+    },
+    {
+      "fdc_id": 2708941,
+      "description": "Macaroni or pasta salad with egg",
+      "n_ingredients": 8,
+      "food_code": "58148120"
+    },
+    {
+      "fdc_id": 2708949,
+      "description": "Noodle pudding",
+      "n_ingredients": 7,
+      "food_code": "58149110"
+    },
+    {
+      "fdc_id": 2708972,
+      "description": "Sushi, topped with egg",
+      "n_ingredients": 6,
+      "food_code": "58151450"
+    },
+    {
+      "fdc_id": 2708979,
+      "description": "Rice with Spanish sausage, Puerto Rican style",
+      "n_ingredients": 12,
+      "food_code": "58156310"
+    },
+    {
+      "fdc_id": 2709002,
+      "description": "Rice, white, with carrots, NS as to fat",
+      "n_ingredients": 4,
+      "food_code": "58160460"
+    },
+    {
+      "fdc_id": 2709027,
+      "description": "Rice, white, with other vegetables, no added fat",
+      "n_ingredients": 5,
+      "food_code": "58160710"
+    },
+    {
+      "fdc_id": 2709064,
+      "description": "Grape leaves stuffed with rice",
+      "n_ingredients": 12,
+      "food_code": "58161510"
+    },
+    {
+      "fdc_id": 2709091,
+      "description": "Rice dessert or salad with fruit",
+      "n_ingredients": 6,
+      "food_code": "58164210"
+    },
+    {
+      "fdc_id": 2709106,
+      "description": "Rice, brown, with gravy, fat added",
+      "n_ingredients": 4,
+      "food_code": "58164850"
+    },
+    {
+      "fdc_id": 2709107,
+      "description": "Rice, brown, with soy-based sauce, NS as to fat",
+      "n_ingredients": 4,
+      "food_code": "58164860"
+    },
+    {
+      "fdc_id": 2709112,
+      "description": "Rice, white, with vegetables, cheese and/or cream based sauce, fat added",
+      "n_ingredients": 5,
+      "food_code": "58165020"
+    },
+    {
+      "fdc_id": 2709119,
+      "description": "Rice, brown, with vegetables, cheese and/or cream based sauce, NS as to fat",
+      "n_ingredients": 5,
+      "food_code": "58165400"
+    },
+    {
+      "fdc_id": 2709124,
+      "description": "Rice, brown, with vegetables and gravy, fat added",
+      "n_ingredients": 5,
+      "food_code": "58165450"
+    },
+    {
+      "fdc_id": 2709138,
+      "description": "Jelly sandwich, on white bread",
+      "n_ingredients": 2,
+      "food_code": "58201005"
+    },
+    {
+      "fdc_id": 2709216,
+      "description": "Applesauce, regular",
+      "n_ingredients": 2,
+      "food_code": "63101110"
+    },
+    {
+      "fdc_id": 2709250,
+      "description": "Peach, canned, NFS",
+      "n_ingredients": 2,
+      "food_code": "63135110"
+    },
+    {
+      "fdc_id": 2709252,
+      "description": "Peach, canned, juice pack",
+      "n_ingredients": 2,
+      "food_code": "63135170"
+    },
+    {
+      "fdc_id": 2709272,
+      "description": "Berries, frozen",
+      "n_ingredients": 4,
+      "food_code": "63200110"
+    },
+    {
+      "fdc_id": 2709357,
+      "description": "Baby Toddler fruit and vegetables, Stage 2",
+      "n_ingredients": 2,
+      "food_code": "67100350"
+    },
+    {
+      "fdc_id": 2709386,
+      "description": "Potato, boiled, ready-to-heat",
+      "n_ingredients": 3,
+      "food_code": "71102990"
+    },
+    {
+      "fdc_id": 2709398,
+      "description": "Potato, boiled, from fresh, peel eaten, made with margarine",
+      "n_ingredients": 3,
+      "food_code": "71103150"
+    },
+    {
+      "fdc_id": 2709450,
+      "description": "Potato, scalloped, from fresh",
+      "n_ingredients": 6,
+      "food_code": "71305030"
+    },
+    {
+      "fdc_id": 2709452,
+      "description": "Potato, scalloped, from dry mix",
+      "n_ingredients": 6,
+      "food_code": "71305050"
+    },
+    {
+      "fdc_id": 2709489,
+      "description": "Potato skins, with cheese",
+      "n_ingredients": 5,
+      "food_code": "71410500"
+    },
+    {
+      "fdc_id": 2709513,
+      "description": "Potato tots, school",
+      "n_ingredients": 4,
+      "food_code": "71505020"
+    },
+    {
+      "fdc_id": 2709519,
+      "description": "Potato, baked, peel not eaten, with sour cream",
+      "n_ingredients": 4,
+      "food_code": "71507010"
+    },
+    {
+      "fdc_id": 2709534,
+      "description": "Potato salad with egg, made with mayonnaise-type salad dressing",
+      "n_ingredients": 9,
+      "food_code": "71601020"
+    },
+    {
+      "fdc_id": 2709542,
+      "description": "Potato salad, from restaurant",
+      "n_ingredients": 8,
+      "food_code": "71602950"
+    },
+    {
+      "fdc_id": 2709558,
+      "description": "Plantain, cooked, no added fat",
+      "n_ingredients": 2,
+      "food_code": "71900100"
+    },
+    {
+      "fdc_id": 2709587,
+      "description": "Cress, cooked",
+      "n_ingredients": 3,
+      "food_code": "72110221"
+    },
+    {
+      "fdc_id": 2709605,
+      "description": "Lambsquarter, cooked",
+      "n_ingredients": 3,
+      "food_code": "72120220"
+    },
+    {
+      "fdc_id": 2709630,
+      "description": "Spinach and cheese casserole",
+      "n_ingredients": 6,
+      "food_code": "72125260"
+    },
+    {
+      "fdc_id": 2709654,
+      "description": "Broccoli casserole with noodles",
+      "n_ingredients": 6,
+      "food_code": "72202010"
+    },
+    {
+      "fdc_id": 2709655,
+      "description": "Broccoli casserole with rice",
+      "n_ingredients": 7,
+      "food_code": "72202020"
+    },
+    {
+      "fdc_id": 2709676,
+      "description": "Carrots, canned, cooked with butter or margarine",
+      "n_ingredients": 2,
+      "food_code": "73102228"
+    },
+    {
+      "fdc_id": 2709691,
+      "description": "Pumpkin, canned, cooked",
+      "n_ingredients": 2,
+      "food_code": "73201013"
+    },
+    {
+      "fdc_id": 2709825,
+      "description": "Lettuce, salad with cheese, tomato and/or carrots, with or without other vegetables, no dressing",
+      "n_ingredients": 7,
+      "food_code": "75143200"
+    },
+    {
+      "fdc_id": 2709886,
+      "description": "Burdock, cooked",
+      "n_ingredients": 3,
+      "food_code": "75209501"
+    },
+    {
+      "fdc_id": 2709889,
+      "description": "Cabbage, green, cooked, no added fat",
+      "n_ingredients": 2,
+      "food_code": "75211020"
+    },
+    {
+      "fdc_id": 2709894,
+      "description": "Cabbage, savoy, cooked",
+      "n_ingredients": 3,
+      "food_code": "75213020"
+    },
+    {
+      "fdc_id": 2709905,
+      "description": "Cauliflower, frozen, cooked with butter or margarine",
+      "n_ingredients": 3,
+      "food_code": "75214031"
+    },
+    {
+      "fdc_id": 2709964,
+      "description": "Green peas, frozen, cooked, fat added, NS as to fat type",
+      "n_ingredients": 3,
+      "food_code": "75224032"
+    },
+    {
+      "fdc_id": 2709999,
+      "description": "Summer squash, yellow or green, frozen, cooked with oil",
+      "n_ingredients": 4,
+      "food_code": "75233030"
+    },
+    {
+      "fdc_id": 2710022,
+      "description": "Classic mixed vegetables, canned, reduced sodium, cooked, no added fat",
+      "n_ingredients": 4,
+      "food_code": "75311110"
+    },
+    {
+      "fdc_id": 2710058,
+      "description": "Fried summer squash, yellow or green",
+      "n_ingredients": 4,
+      "food_code": "75418010"
+    },
+    {
+      "fdc_id": 2710086,
+      "description": "Honey mustard dip",
+      "n_ingredients": 6,
+      "food_code": "75506100"
+    },
+    {
+      "fdc_id": 2710139,
+      "description": "Green plantain with cracklings, Puerto Rican style",
+      "n_ingredients": 3,
+      "food_code": "77201210"
+    },
+    {
+      "fdc_id": 2710175,
+      "description": "Pesto sauce",
+      "n_ingredients": 6,
+      "food_code": "81302070"
+    },
+    {
+      "fdc_id": 2710177,
+      "description": "Sauce, NFS",
+      "n_ingredients": 5,
+      "food_code": "81308200"
+    },
+    {
+      "fdc_id": 2710179,
+      "description": "Honey butter",
+      "n_ingredients": 2,
+      "food_code": "81322000"
+    },
+    {
+      "fdc_id": 2710278,
+      "description": "Simple syrup",
+      "n_ingredients": 2,
+      "food_code": "91301100"
+    },
+    {
+      "fdc_id": 2710314,
+      "description": "Gelatin dessert, sugar free, with fruit",
+      "n_ingredients": 2,
+      "food_code": "91511020"
+    },
+    {
+      "fdc_id": 2710382,
+      "description": "Coffee, macchiato",
+      "n_ingredients": 2,
+      "food_code": "92101810"
+    },
+    {
+      "fdc_id": 2710416,
+      "description": "Frozen mocha coffee drink",
+      "n_ingredients": 5,
+      "food_code": "92102000"
+    },
+    {
+      "fdc_id": 2710417,
+      "description": "Frozen mocha coffee drink, nonfat",
+      "n_ingredients": 5,
+      "food_code": "92102010"
+    },
+    {
+      "fdc_id": 2710419,
+      "description": "Frozen mocha coffee drink, with whipped cream",
+      "n_ingredients": 6,
+      "food_code": "92102030"
+    },
+    {
+      "fdc_id": 2710447,
+      "description": "Coffee, Iced Cafe Mocha, decaffeinated, nonfat",
+      "n_ingredients": 4,
+      "food_code": "92102611"
+    },
+    {
+      "fdc_id": 2710474,
+      "description": "Coffee, Cappuccino, with non-dairy milk",
+      "n_ingredients": 3,
+      "food_code": "92161002"
+    },
+    {
+      "fdc_id": 2710631,
+      "description": "Gelatin shot, alcoholic",
+      "n_ingredients": 3,
+      "food_code": "93301045"
+    },
+    {
+      "fdc_id": 2710636,
+      "description": "Kamikaze",
+      "n_ingredients": 3,
+      "food_code": "93301085"
+    },
+    {
+      "fdc_id": 2710668,
+      "description": "Vodka and energy drink",
+      "n_ingredients": 2,
+      "food_code": "93301216"
+    },
+    {
+      "fdc_id": 2710681,
+      "description": "Alcoholic coffee drink",
+      "n_ingredients": 4,
+      "food_code": "93301400"
+    }
+  ]
+}
