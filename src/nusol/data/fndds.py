@@ -160,78 +160,83 @@ class FNDDSDataAdapter(DataAdapterBase):
         self,
         ingredient_code: int,
         ingredient_description: str,
-        ingredient_db: DataAdapterBase,
+        foundation_db: DataAdapterBase | None = None,
+        sr_legacy_db: DataAdapterBase | None = None,
     ) -> tuple[NutrientProfile | None, str, float]:
         """Map a single FNDDS ingredient code to a nutrient profile.
 
-        Three-level fallback:
-          1. ingredientCode → SR Legacy ndbNumber
-          2. ingredientCode → FNDDS foodCode (self-lookup)
-          3. ingredientDescription → SR Legacy fuzzy search
+        Four-level fallback (prefer most current / authoritative data):
+          L1: ingredientCode → FNDDS foodCode (self-lookup, same source)
+          L2: ingredientCode → Foundation Foods ndbNumber (most current, 2026)
+          L3: ingredientCode → SR Legacy ndbNumber (comprehensive, 2018 frozen)
+          L4: ingredientDescription → SR Legacy fuzzy search
 
         Args:
             ingredient_code: FNDDS ingredientCode.
             ingredient_description: Human-readable ingredient name.
-            ingredient_db: SR Legacy adapter (or compatible).
+            foundation_db: Foundation Foods adapter (preferred, optional).
+            sr_legacy_db: SR Legacy adapter (fallback, required).
 
         Returns:
             (profile, match_method, confidence)
-            - profile: NutrientProfile or None
-            - match_method: "ndb_direct" | "fndds_self" | "fuzzy" | "fortificant" | "none"
-            - confidence: 0.0-1.0
         """
         code_str = str(ingredient_code)
 
-        # Fortificant check
+        # Fortificant check — pure nutrient additives, skip mapping
         if code_str in self.FORTIFICANT_CODES:
             return None, "fortificant", 1.0
 
-        # Level 1: ingredientCode → SR Legacy ndbNumber
-        if hasattr(ingredient_db, "get_by_ndb_number"):
-            profile = ingredient_db.get_by_ndb_number(code_str)
-            if profile is not None:
-                return profile, "ndb_direct", 1.0
-
-        # Level 2: ingredientCode → FNDDS foodCode (self-lookup)
+        # L1: ingredientCode → FNDDS foodCode (self-lookup, same data source)
         fndds_food = self._by_code.get(code_str)
         if fndds_food is not None:
             profile = self._parse_nutrients(fndds_food)
             if profile and len(profile.nutrients) > 0:
-                return profile, "fndds_self", 0.95
+                return profile, "fndds_self", 1.0
 
-        # Level 3: ingredientDescription → SR Legacy fuzzy search
-        if hasattr(ingredient_db, "search"):
-            results = ingredient_db.search(ingredient_description)
+        # L2: ingredientCode → Foundation Foods ndbNumber (gold standard, 2026)
+        if foundation_db is not None and hasattr(foundation_db, "get_by_ndb_number"):
+            profile = foundation_db.get_by_ndb_number(code_str)
+            if profile is not None:
+                return profile, "foundation_ndb", 0.98
+
+        # L3: ingredientCode → SR Legacy ndbNumber (comprehensive fallback)
+        if sr_legacy_db is not None and hasattr(sr_legacy_db, "get_by_ndb_number"):
+            profile = sr_legacy_db.get_by_ndb_number(code_str)
+            if profile is not None:
+                return profile, "sr_legacy_ndb", 0.95
+
+        # L4: ingredientDescription → SR Legacy fuzzy search
+        if sr_legacy_db is not None and hasattr(sr_legacy_db, "search"):
+            results = sr_legacy_db.search(ingredient_description)
             if results:
                 profile, score = results[0]
                 confidence = score / 100.0
                 return profile, "fuzzy", confidence
 
-        # No match found
         return None, "none", 0.0
 
     def get_ingredient_nutrient_matrix(
         self,
         fdc_id: int,
-        ingredient_db: DataAdapterBase,
+        foundation_db: DataAdapterBase | None = None,
+        sr_legacy_db: DataAdapterBase | None = None,
         nutrient_names: list[str] | None = None,
+        skip_zero_weight: bool = True,
     ) -> tuple[dict, dict[str, NutrientProfile], list[str], dict[str, dict]]:
         """Build the ingredient nutrient matrix for a recipe.
 
-        Uses the 3-level fallback mapping strategy (ndbNumber → FNDDS self → fuzzy).
+        Uses 4-level fallback: FNDDS self → Foundation → SR Legacy → fuzzy.
+        Filters out zero-weight ingredients by default.
 
         Args:
             fdc_id: FNDDS food FDC ID.
-            ingredient_db: SR Legacy adapter for ingredient nutrient lookup.
-            nutrient_names: Optional list of nutrient names to include.
-                           If None, uses all nutrients from the final product.
+            foundation_db: Foundation Foods adapter (L2, optional).
+            sr_legacy_db: SR Legacy adapter (L3-L4, required).
+            nutrient_names: Nutrient names to include (all if None).
+            skip_zero_weight: If True, exclude ingredients with weight=0.
 
         Returns:
             (matrix, profiles, nutrient_names, mapping_meta)
-            matrix: {ingredient_name: {nutrient_name: amount}}
-            profiles: {ingredient_name: NutrientProfile}
-            nutrient_names: list of nutrient names used
-            mapping_meta: {ingredient_name: {method, confidence, code}}
         """
         recipe = self.get_recipe(fdc_id)
         if recipe is None:
@@ -240,16 +245,23 @@ class FNDDSDataAdapter(DataAdapterBase):
         if nutrient_names is None:
             nutrient_names = recipe["final_nutrients"].nutrient_names()
 
+        # Filter zero-weight ingredients
+        ingredients = recipe["ingredients"]
+        if skip_zero_weight:
+            ingredients = [ing for ing in ingredients if ing.get("weight_g", 0) > 0]
+
         matrix = {}
         profiles = {}
         mapping_meta = {}
 
-        for ing in recipe["ingredients"]:
+        for ing in ingredients:
             name = ing["description"]
             code = ing.get("ingredient_code", 0)
 
             profile, method, conf = self.map_ingredient_to_profile(
-                code, name, ingredient_db
+                code, name,
+                foundation_db=foundation_db,
+                sr_legacy_db=sr_legacy_db,
             )
 
             mapping_meta[name] = {

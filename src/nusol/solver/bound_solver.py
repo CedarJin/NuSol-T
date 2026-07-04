@@ -81,16 +81,20 @@ class BoundSolver:
             # Minimize x_i
             try:
                 res_min = minimize(
-                    lambda x: x[i] + 0.01 * objective(x),  # Light penalty for feasibility
+                    lambda x: x[i] + 0.01 * objective(x),
                     x0_base,
                     method=self.method,
                     bounds=scipy_bounds,
                     constraints=scipy_constraints,
                     options={"maxiter": self.max_iter, "xtol": self.tolerance},
                 )
-                x_lower[variables[i]] = float(res_min.x[i]) if res_min.success else 0.0
+                if res_min.success:
+                    val = float(np.clip(res_min.x[i], 0.0, 1.0))
+                else:
+                    val = float(np.clip(x0_base[i], 0.0, 1.0))
+                x_lower[variables[i]] = val
             except Exception:
-                x_lower[variables[i]] = 0.0
+                x_lower[variables[i]] = float(np.clip(x0_base[i], 0.0, 1.0))
 
             # Maximize x_i = minimize -x_i
             try:
@@ -102,9 +106,13 @@ class BoundSolver:
                     constraints=scipy_constraints,
                     options={"maxiter": self.max_iter, "xtol": self.tolerance},
                 )
-                x_upper[variables[i]] = float(res_max.x[i]) if res_max.success else 1.0
+                if res_max.success:
+                    val = float(np.clip(res_max.x[i], 0.0, 1.0))
+                else:
+                    val = float(np.clip(x0_base[i], 0.0, 1.0))
+                x_upper[variables[i]] = val
             except Exception:
-                x_upper[variables[i]] = 1.0
+                x_upper[variables[i]] = float(np.clip(x0_base[i], 0.0, 1.0))
 
         solve_time = time.perf_counter() - t0
 

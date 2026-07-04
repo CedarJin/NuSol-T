@@ -125,7 +125,7 @@ class TestFNDDSIngredientMatrix:
         nutrient_names = recipe["final_nutrients"].nutrient_names()
 
         matrix, profiles, names, mapping_meta = fndds_adapter.get_ingredient_nutrient_matrix(
-            fdc_id, sr, nutrient_names=nutrient_names[:10]
+            fdc_id, sr_legacy_db=sr, nutrient_names=nutrient_names[:10]
         )
         assert len(matrix) > 0
         assert len(matrix) == len(recipe["ingredients"])
@@ -161,18 +161,18 @@ class TestFNDDSIngredientMapping:
                 continue
             for ing in recipe["ingredients"]:
                 profile, method, conf = fndds_adapter.map_ingredient_to_profile(
-                    ing["ingredient_code"], ing["description"], sr
+                    ing["ingredient_code"], ing["description"], sr_legacy_db=sr
                 )
                 methods[method] = methods.get(method, 0) + 1
                 tested += 1
             if tested >= 50:
                 break
 
-        # ndb_direct should be the dominant mapping method (>50%)
-        assert methods["ndb_direct"] > 0, "Should have at least some ndb_direct matches"
+        # Should have matches via ndb (foundation or sr_legacy) or fndds_self
+        total_matched = methods.get("fndds_self", 0) + methods.get("foundation_ndb", 0) + methods.get("sr_legacy_ndb", 0)
+        assert total_matched > 0, "Should have at least some mapped ingredients"
         total = sum(methods.values())
-        ndb_pct = methods["ndb_direct"] / total * 100 if total > 0 else 0
-        print(f"\nMapping methods: {methods} (ndb_direct={ndb_pct:.0f}%)")
+        print(f"\nMapping methods: {methods} (mapped={total_matched}/{total})")
 
     def test_fortificant_detection(self, fndds_adapter):
         """999xxx codes should be detected as fortificants."""
@@ -187,7 +187,7 @@ class TestFNDDSIngredientMapping:
 
         # Test a fortificant code directly
         profile, method, conf = fndds_adapter.map_ingredient_to_profile(
-            999328, "Vitamin D as ingredient", sr
+            999328, "Vitamin D as ingredient", sr_legacy_db=sr
         )
         assert method == "fortificant"
         assert profile is None  # Fortificants don't get a profile
@@ -213,7 +213,7 @@ class TestFNDDSIngredientMapping:
                 continue
             for ing in recipe["ingredients"]:
                 profile, method, conf = fndds_adapter.map_ingredient_to_profile(
-                    ing["ingredient_code"], ing["description"], sr
+                    ing["ingredient_code"], ing["description"], sr_legacy_db=sr
                 )
-                assert method in ("ndb_direct", "fndds_self", "fuzzy", "fortificant", "none")
+                assert method in ("fndds_self", "foundation_ndb", "sr_legacy_ndb", "fuzzy", "fortificant", "none")
                 assert 0.0 <= conf <= 1.0
