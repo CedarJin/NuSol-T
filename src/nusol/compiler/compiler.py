@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
 
 from nusol.compiler.ir import CompiledProblem, LinearConstraintIR, VariableIR
-from nusol.config.errors import UnsupportedConstraintError
+from nusol.config.errors import CompileError, UnsupportedConstraintError
 from nusol.constraints.registry import get_constraint_registry
 from nusol.domain.problem import IngredientProblem
 
