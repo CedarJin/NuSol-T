@@ -141,64 +141,73 @@ def compute_inverse_metrics(
     all_abs_errors = []
     top_abs_errors = []
     rank_correlations = []
-    coverages_80 = []
-    coverages_95 = []
+    feasible_coverages = []
     interval_widths = []
+    mapping_coverages = []
 
     for idx, true_frac in enumerate(true_fractions):
         est_frac = estimated_fractions[idx] if idx < len(estimated_fractions) else {}
 
-        # Compute MAE for common ingredients
-        common = set(true_frac) & set(est_frac)
-        if common:
-            errors = [abs(true_frac[k] - est_frac.get(k, 0)) for k in common]
-            all_abs_errors.extend(errors)
+        # ── MAE: use UNION of all ingredients (fixes F0.1) ──
+        all_ingredients = set(true_frac) | set(est_frac)
+        errors = [abs(true_frac.get(k, 0.0) - est_frac.get(k, 0.0)) for k in all_ingredients]
+        all_abs_errors.extend(errors)
 
-            # Top ingredient error
+        # Mapping coverage: fraction of true ingredients that have estimates
+        n_true = len(true_frac)
+        n_mapped = sum(1 for k in true_frac if k in est_frac)
+        if n_true > 0:
+            mapping_coverages.append(n_mapped / n_true)
+
+        # Top ingredient error
+        if true_frac:
             top_true = max(true_frac, key=true_frac.get)
             if top_true in est_frac:
                 top_abs_errors.append(abs(true_frac[top_true] - est_frac[top_true]))
 
-            # Rank correlation (Spearman)
-            true_sorted = sorted(true_frac, key=true_frac.get, reverse=True)
-            est_sorted = sorted(est_frac, key=est_frac.get, reverse=True)
+        # Rank correlation (Spearman) — use union of ingredients
+        all_keys = list(all_ingredients)
+        if len(all_keys) >= 2:
+            true_vals = [true_frac.get(k, 0.0) for k in all_keys]
+            est_vals = [est_frac.get(k, 0.0) for k in all_keys]
+            true_ranks = {k: i for i, k in enumerate(sorted(all_keys, key=lambda x: true_frac.get(x, 0), reverse=True))}
+            est_ranks = {k: i for i, k in enumerate(sorted(all_keys, key=lambda x: est_frac.get(x, 0), reverse=True))}
+            d2 = sum((true_ranks[k] - est_ranks[k])**2 for k in all_keys)
+            n = len(all_keys)
+            rho = 1.0 - 6.0 * d2 / (n * (n**2 - 1)) if n > 1 else 0.0
+            rank_correlations.append(rho)
 
-            true_ranks = {name: i for i, name in enumerate(true_sorted)}
-            est_ranks = {name: i for i, name in enumerate(est_sorted)}
-
-            common_ranked = [k for k in common if k in true_ranks and k in est_ranks]
-            if len(common_ranked) >= 2:
-                d2 = sum((true_ranks[k] - est_ranks[k])**2 for k in common_ranked)
-                n = len(common_ranked)
-                rho = 1.0 - 6.0 * d2 / (n * (n**2 - 1)) if n > 1 else 0.0
-                rank_correlations.append(rho)
-
-        # Coverage
+        # ── Feasible-bound coverage (was incorrectly named 80/95 coverage, F0.4) ──
         if estimated_lower and estimated_upper:
             lo = estimated_lower[idx] if idx < len(estimated_lower) else {}
             hi = estimated_upper[idx] if idx < len(estimated_upper) else {}
-            for k in common:
+            coverage_count = 0
+            total_count = 0
+            for k in all_ingredients:
                 if k in lo and k in hi:
+                    total_count += 1
                     w = hi[k] - lo[k]
                     interval_widths.append(w)
-                    if lo[k] <= true_frac[k] <= hi[k]:
-                        coverages_80.append(1.0)
-                        coverages_95.append(1.0)
-                    else:
-                        coverages_80.append(0.0)
-                        coverages_95.append(0.0)
+                    if lo[k] <= true_frac.get(k, 0) <= hi[k]:
+                        coverage_count += 1
+            if total_count > 0:
+                feasible_coverages.append(coverage_count / total_count)
 
     metrics.ingredient_mae = float(np.mean(all_abs_errors)) if all_abs_errors else 0.0
     metrics.top_ingredient_mae = float(np.mean(top_abs_errors)) if top_abs_errors else 0.0
     metrics.rank_correlation = float(np.mean(rank_correlations)) if rank_correlations else 0.0
-    metrics.interval_coverage_80 = float(np.mean(coverages_80)) if coverages_80 else 0.0
-    metrics.interval_coverage_95 = float(np.mean(coverages_95)) if coverages_95 else 0.0
+    # feasible_bound_coverage replaces the old 80/95 coverage (F0.4)
+    metrics.interval_coverage_80 = float(np.mean(feasible_coverages)) if feasible_coverages else 0.0
+    metrics.interval_coverage_95 = metrics.interval_coverage_80  # Same until ensemble quantiles added
     metrics.average_interval_width = float(np.mean(interval_widths)) if interval_widths else 0.0
 
     # Constraint conflicts
     if active_constraints:
-        from collections import Counter
+        # zero_slack_rate = proportion of samples with NO active constraints (fixes F0.5)
+        n_zero_slack = sum(1 for ac in active_constraints if not ac)
+        metrics.zero_slack_rate = n_zero_slack / len(active_constraints) if active_constraints else 1.0
 
+        from collections import Counter
         all_conflicts = []
         for ac in active_constraints:
             all_conflicts.extend(ac)
@@ -207,6 +216,5 @@ def compute_inverse_metrics(
         metrics.constraint_conflict_frequency = {
             k: v / total for k, v in counter.items()
         }
-        metrics.zero_slack_rate = 1.0 - (sum(counter.values()) / total) if total > 0 else 1.0
 
     return metrics

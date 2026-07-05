@@ -11,15 +11,20 @@ from nusol.validation.metrics import ForwardMetrics, InverseMetrics
 
 
 # Ablation levels: G0 (minimal) → G7 (full model)
+# Each level strictly includes the previous + one new constraint type.
 ABLATION_LEVELS: dict[str, list[str]] = {
     "G0": ["mass_balance"],
     "G1": ["mass_balance", "ingredient_order"],
     "G2": ["mass_balance", "ingredient_order", "label_interval_fit"],
     "G3": ["mass_balance", "ingredient_order", "label_interval_fit", "energy_closure"],
     "G4": ["mass_balance", "ingredient_order", "label_interval_fit", "energy_closure", "two_percent_rule"],
-    "G5": ["mass_balance", "ingredient_order", "label_interval_fit", "energy_closure", "two_percent_rule", "category_prior"],
-    "G6": ["mass_balance", "ingredient_order", "label_interval_fit", "energy_closure", "two_percent_rule", "category_prior"],
-    "G7": ["mass_balance", "ingredient_order", "label_interval_fit", "energy_closure", "two_percent_rule", "category_prior"],
+    "G5": ["mass_balance", "ingredient_order", "label_interval_fit", "energy_closure", "two_percent_rule",
+           "water_solid_balance"],
+    "G6": ["mass_balance", "ingredient_order", "label_interval_fit", "energy_closure", "two_percent_rule",
+           "water_solid_balance", "sodium_balance", "added_sugar_balance", "fatty_acid_closure"],
+    "G7": ["mass_balance", "ingredient_order", "label_interval_fit", "energy_closure", "two_percent_rule",
+           "water_solid_balance", "sodium_balance", "added_sugar_balance", "fatty_acid_closure",
+           "category_prior"],
 }
 
 

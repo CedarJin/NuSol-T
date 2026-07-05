@@ -42,7 +42,7 @@ class TestAblation:
         assert g2_constraints["energy_closure"]["enabled"] is False
 
     def test_ablation_levels_progressive(self):
-        """Each successive level should have more constraints enabled."""
+        """Each successive level should have strictly more constraints."""
         from nusol.validation.ablation import generate_ablation_configs, ABLATION_LEVELS
 
         base_config = {"inverse_solver": {"constraints": {}}}
@@ -51,9 +51,14 @@ class TestAblation:
         for i in range(len(ABLATION_LEVELS) - 1):
             curr = f"G{i}"
             next_lvl = f"G{i+1}"
-            curr_count = len(ABLATION_LEVELS[curr])
-            next_count = len(ABLATION_LEVELS[next_lvl])
-            assert next_count >= curr_count
+            curr_set = set(ABLATION_LEVELS[curr])
+            next_set = set(ABLATION_LEVELS[next_lvl])
+            assert curr_set.issubset(next_set), (
+                f"{curr} constraints {curr_set} not subset of {next_lvl} {next_set}"
+            )
+            assert len(curr_set) < len(next_set), (
+                f"{curr} and {next_lvl} have same number of constraints"
+            )
 
     def test_ablation_summary(self):
         from nusol.validation.ablation import ablation_summary
