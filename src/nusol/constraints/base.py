@@ -101,6 +101,10 @@ class ConstraintBuilder:
         from nusol.constraints.two_percent import TwoPercentRuleConstraint
         from nusol.constraints.label_interval import LabelIntervalFitConstraint
         from nusol.constraints.energy_closure import EnergyClosureConstraint
+        from nusol.constraints.water_solid import WaterSolidBalanceConstraint
+        from nusol.constraints.sodium_balance import SodiumBalanceConstraint
+        from nusol.constraints.added_sugar_balance import AddedSugarBalanceConstraint
+        from nusol.constraints.fatty_acid_closure import FattyAcidClosureConstraint
         from nusol.constraints.category_prior import CategoryPriorConstraint
 
         constraint_classes = {
@@ -109,6 +113,10 @@ class ConstraintBuilder:
             "two_percent_rule": TwoPercentRuleConstraint,
             "label_interval_fit": LabelIntervalFitConstraint,
             "energy_closure": EnergyClosureConstraint,
+            "water_solid_balance": WaterSolidBalanceConstraint,
+            "sodium_balance": SodiumBalanceConstraint,
+            "added_sugar_balance": AddedSugarBalanceConstraint,
+            "fatty_acid_closure": FattyAcidClosureConstraint,
             "category_prior": CategoryPriorConstraint,
         }
 
@@ -138,7 +146,10 @@ class ConstraintBuilder:
         for c in constraints:
             sc = c.to_scipy_constraint(context)
             if sc is not None:
-                scipy_cons.append(sc)
+                if isinstance(sc, list):
+                    scipy_cons.extend(sc)
+                else:
+                    scipy_cons.append(sc)
         return scipy_cons
 
     def build_scipy_bounds(

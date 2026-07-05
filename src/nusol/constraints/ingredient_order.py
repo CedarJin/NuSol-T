@@ -48,3 +48,29 @@ class IngredientOrderConstraint(ConstraintBase):
             priority=self.priority,
             weight=self.weight,
         )
+
+    def to_scipy_constraint(self, context: dict[str, Any]) -> list[dict]:
+        """Return SciPy inequality constraints: x_i - x_{i+1} >= 0 for each pair.
+
+        Unlike the soft-penalty approach, this enforces the order as hard constraints.
+        """
+        main_indices = context.get("main_ingredient_indices", [])
+        if len(main_indices) < 2:
+            return []
+
+        constraints = []
+        for k in range(len(main_indices) - 1):
+            i = main_indices[k]
+            j = main_indices[k + 1]
+
+            # x[i] - x[j] >= 0  =>  x[j] - x[i] <= 0
+            # scipy 'ineq' means fun(x) >= 0
+            def make_ineq(i_val=i, j_val=j):
+                return lambda x, i=i_val, j=j_val: x[i] - x[j]
+
+            constraints.append({
+                "type": "ineq",
+                "fun": make_ineq(),
+            })
+
+        return constraints

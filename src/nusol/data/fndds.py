@@ -250,6 +250,21 @@ class FNDDSDataAdapter(DataAdapterBase):
         if skip_zero_weight:
             ingredients = [ing for ing in ingredients if ing.get("weight_g", 0) > 0]
 
+        # Filter trace fortificants — ingredients like "Vitamin D as ingredient"
+        # that have negligible weight (<1%) and no meaningful nutrient profile.
+        # Including them creates free variables that pollute the solution.
+        total_weight = sum(ing.get("weight_g", 0) for ing in ingredients)
+        filtered = []
+        skipped_fort = []
+        for ing in ingredients:
+            code_str = str(ing.get("ingredient_code", ""))
+            w = ing.get("weight_g", 0)
+            if code_str in self.FORTIFICANT_CODES and (w < 0.01 or (total_weight > 0 and w / total_weight < 0.01)):
+                skipped_fort.append(ing["description"])
+                continue
+            filtered.append(ing)
+        ingredients = filtered
+
         matrix = {}
         profiles = {}
         mapping_meta = {}

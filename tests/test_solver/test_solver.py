@@ -284,6 +284,10 @@ class TestConstraintBuilder:
                 "two_percent_rule": {"enabled": False},
                 "label_interval_fit": {"enabled": True, "weight": 20},
                 "energy_closure": {"enabled": False},
+                "water_solid_balance": {"enabled": False},
+                "sodium_balance": {"enabled": False},
+                "added_sugar_balance": {"enabled": False},
+                "fatty_acid_closure": {"enabled": False},
                 "category_prior": {"enabled": False},
             }
         }
