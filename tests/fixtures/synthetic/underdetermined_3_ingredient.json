@@ -1,0 +1,24 @@
+{
+  "_meta": {
+    "name": "underdetermined_3_ingredient",
+    "type": "underdetermined",
+    "description": "3 ingredients, 1 nutrient constraint (energy only). Multiple solutions satisfy all constraints.",
+    "expected": {
+      "point_success": true,
+      "bound_success": true,
+      "min_bound_width": 0.1
+    }
+  },
+  "variables": ["flour", "sugar", "oil"],
+  "nutrient_names": ["Energy"],
+  "nutrient_matrix": [
+    [364.0],
+    [387.0],
+    [884.0]
+  ],
+  "target_intervals": {
+    "Energy": [400.0, 500.0]
+  },
+  "main_ingredient_indices": [0, 1, 2],
+  "true_fractions": null
+}

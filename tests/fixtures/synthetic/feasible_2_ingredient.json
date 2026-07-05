@@ -1,0 +1,29 @@
+{
+  "_meta": {
+    "name": "feasible_2_ingredient",
+    "type": "feasible",
+    "description": "2 ingredients, 3 nutrients, unique solution. Flour + Sugar blend.",
+    "expected": {
+      "point_success": true,
+      "x_flour": 0.5,
+      "x_sugar": 0.5,
+      "tolerance": 0.05
+    }
+  },
+  "variables": ["flour", "sugar"],
+  "nutrient_names": ["Energy", "Protein", "Total lipid (fat)"],
+  "nutrient_matrix": [
+    [364.0, 10.3, 1.0],
+    [387.0, 0.0, 0.0]
+  ],
+  "target_intervals": {
+    "Energy": [370.0, 380.0],
+    "Protein": [4.5, 6.0],
+    "Total lipid (fat)": [0.0, 1.0]
+  },
+  "main_ingredient_indices": [0, 1],
+  "true_fractions": {
+    "flour": 0.5,
+    "sugar": 0.5
+  }
+}

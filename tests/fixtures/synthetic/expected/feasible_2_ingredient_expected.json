@@ -1,0 +1,31 @@
+{
+  "_meta": {
+    "fixture": "feasible_2_ingredient",
+    "fixture_type": "feasible",
+    "generated_by": "snapshot_synthetic.py"
+  },
+  "qp": {
+    "success": true,
+    "message": "Optimization terminated successfully",
+    "x_point": {
+      "flour": 0.5,
+      "sugar": 0.5
+    },
+    "objective_value": null,
+    "active_constraints": [],
+    "solve_time_s": 0.0015
+  },
+  "bound": {
+    "success": true,
+    "message": "Bounds for 2 vars via LP (highs)",
+    "x_lower": {
+      "flour": 0.5,
+      "sugar": 0.417476
+    },
+    "x_upper": {
+      "flour": 0.582524,
+      "sugar": 0.5
+    },
+    "solve_time_s": 0.0028
+  }
+}

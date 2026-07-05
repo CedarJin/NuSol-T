@@ -1,0 +1,24 @@
+{
+  "_meta": {
+    "name": "infeasible_conflict",
+    "type": "infeasible",
+    "description": "Single ingredient must be 100% but cannot meet label constraints. Sodium level impossible.",
+    "expected": {
+      "point_success": false,
+      "bound_success": false
+    }
+  },
+  "variables": ["salt_only"],
+  "nutrient_names": ["Sodium, Na", "Energy"],
+  "nutrient_matrix": [
+    [38758.0, 0.0]
+  ],
+  "target_intervals": {
+    "Sodium, Na": [100.0, 150.0],
+    "Energy": [100.0, 200.0]
+  },
+  "main_ingredient_indices": [0],
+  "true_fractions": {
+    "salt_only": 1.0
+  }
+}

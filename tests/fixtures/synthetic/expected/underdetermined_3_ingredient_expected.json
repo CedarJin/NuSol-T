@@ -1,0 +1,34 @@
+{
+  "_meta": {
+    "fixture": "underdetermined_3_ingredient",
+    "fixture_type": "underdetermined",
+    "generated_by": "snapshot_synthetic.py"
+  },
+  "qp": {
+    "success": true,
+    "message": "Optimization terminated successfully",
+    "x_point": {
+      "flour": 0.380511,
+      "sugar": 0.374516,
+      "oil": 0.244973
+    },
+    "objective_value": 0.0,
+    "active_constraints": [],
+    "solve_time_s": 0.0011
+  },
+  "bound": {
+    "success": true,
+    "message": "Bounds for 3 vars via LP (highs)",
+    "x_lower": {
+      "flour": 0.377581,
+      "sugar": 0.066298,
+      "oil": 0.048181
+    },
+    "x_upper": {
+      "flour": 0.867403,
+      "sugar": 0.47591,
+      "oil": 0.25046
+    },
+    "solve_time_s": 0.0034
+  }
+}

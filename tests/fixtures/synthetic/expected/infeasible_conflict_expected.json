@@ -1,0 +1,30 @@
+{
+  "_meta": {
+    "fixture": "infeasible_conflict",
+    "fixture_type": "infeasible",
+    "generated_by": "snapshot_synthetic.py"
+  },
+  "qp": {
+    "success": true,
+    "message": "Optimization terminated successfully",
+    "x_point": {
+      "salt_only": 1.0
+    },
+    "objective_value": 1490587664.0,
+    "active_constraints": [
+      "label_interval_fit"
+    ],
+    "solve_time_s": 0.0008
+  },
+  "bound": {
+    "success": true,
+    "message": "Bounds for 1 vars via LP (highs)",
+    "x_lower": {
+      "salt_only": 0.0
+    },
+    "x_upper": {
+      "salt_only": 1.0
+    },
+    "solve_time_s": 0.0009
+  }
+}
