@@ -65,11 +65,28 @@ class TestUnitConverter:
         result = UnitConverter.convert_iu(400.0, "Vitamin D", "µg")
         assert result == pytest.approx(10.0)
 
+    def test_convert_iu_vitamin_e(self):
+        from nusol.core.units import UnitConverter
+
+        # 1 IU Vitamin E = 0.67 mg (was incorrectly 0.00067 mg)
+        result = UnitConverter.convert_iu(1.0, "Vitamin E (alpha-tocopherol)", "mg")
+        assert result is not None
+        assert result == pytest.approx(0.67)
+
+    def test_convert_iu_vitamin_d_to_mg(self):
+        from nusol.core.units import UnitConverter
+
+        # 100 IU Vitamin D = 2.5 µg = 0.0025 mg
+        result = UnitConverter.convert_iu(100.0, "Vitamin D", "mg")
+        assert result is not None
+        assert result == pytest.approx(0.0025)
+
     def test_convert_iu_unknown_nutrient(self):
         from nusol.core.units import UnitConverter
 
+        # Unknown nutrient → None (conversion not possible)
         result = UnitConverter.convert_iu(100.0, "Unknown", "µg")
-        assert result == 100.0  # unchanged
+        assert result is None
 
 
 class TestConvertToPer100g:

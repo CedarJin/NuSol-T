@@ -22,9 +22,9 @@ CORE_NUTRIENTS: list[tuple[int, str, str, str, int]] = [
     (1007, "207", "Ash", "g", 1000),
     # Lipids
     (1257, "605", "Fatty acids, total trans", "g", 15400),
-    (1292, "606", "Fatty acids, total saturated", "g", 970),
-    (1293, "607", "Fatty acids, total monounsaturated", "g", 11400),
-    (1294, "608", "Fatty acids, total polyunsaturated", "g", 11500),
+    (1258, "606", "Fatty acids, total saturated", "g", 970),
+    (1292, "607", "Fatty acids, total monounsaturated", "g", 11400),
+    (1293, "608", "Fatty acids, total polyunsaturated", "g", 11500),
     (1253, "601", "Cholesterol", "mg", 15700),
     # Minerals
     (1087, "301", "Calcium, Ca", "mg", 5300),
