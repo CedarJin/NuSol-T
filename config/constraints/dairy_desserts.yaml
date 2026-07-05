@@ -1,0 +1,30 @@
+# 乳制品和甜点 (酸奶、冰淇淋、布丁等)
+# 特征: 乳基为主(60-90%), 糖/水果为辅
+# 挑战: 两种相似冰淇淋不可区分, 需要 similarity_anti_extreme
+
+category: dairy_desserts
+extends: default
+
+constraints:
+  unique_source_lower_bound:
+    enabled: true
+    params:
+      dominance_threshold: 0.90
+
+  # 关键! 防止两种相似冰淇淋被分到极端
+  similarity_anti_extreme:
+    enabled: true
+    weight: 1.0
+    params:
+      cosine_threshold: 0.95
+      max_imbalance: 0.60
+
+  added_sugar_source:
+    enabled: true
+    weight: 0.5  # 甜点中糖来源约束更重要
+
+  category_prior:
+    enabled: true
+    weight: 0.1
+    params:
+      max_single_ingredient: 0.90   # 酸奶/冰淇淋中乳基可以占 >90%

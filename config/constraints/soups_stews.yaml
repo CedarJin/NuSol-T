@@ -1,0 +1,41 @@
+# 汤和炖菜 (牛肉汤、鸡汤、蔬菜汤等)
+# 特征: 水占大头(50-80%), 少量固体食材, 盐含量高
+# 挑战: 多个固体食材配比接近, 欠定
+
+category: soups_stews
+extends: default
+
+constraints:
+  unique_source_lower_bound:
+    enabled: true
+    params:
+      dominance_threshold: 0.85
+
+  sodium_source_balance:
+    enabled: true
+    weight: 1.0  # 非常重要: 汤里盐是主要钠来源
+    params:
+      low_sodium_threshold_mg: 50
+      max_share_from_low_na: 0.20  # 更严格: 低钠配料不应贡献 >20% 钠
+
+  water_solid_balance:
+    enabled: true
+    weight: 0.5
+
+  category_prior:
+    enabled: true
+    weight: 0.2  # 稍高权重, 汤类结构明确
+    params:
+      max_single_ingredient: 0.85   # 水最髙 85%
+
+  # 汤类特有: 水为主要成分
+  water_mass_prior:
+    enabled: true
+    priority: P4
+    type: soft_penalty
+    weight: 0.2
+    description: "汤类中水分通常在 50-85%"
+    params:
+      water_keywords: [water, broth, stock, bouillon]
+      min_water_fraction: 0.40
+      max_water_fraction: 0.90

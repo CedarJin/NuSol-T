@@ -1,0 +1,44 @@
+# 肉类和海鲜 (鸡肉、牛肉、鱼等)
+# 特征: 肉类主料占绝大部分(70-95%), 油/盐为辅
+# 挑战: 多种鱼肉营养 profile 相似, 不可区分 → TrustReport 标记
+
+category: meat_seafood
+extends: default
+
+constraints:
+  unique_source_lower_bound:
+    enabled: true
+    params:
+      dominance_threshold: 0.85   # 放宽到 85%, 肉类贡献大部分蛋白质
+
+  similarity_anti_extreme:
+    enabled: true
+    weight: 0.5  # 降低权重, 多种鱼/肉不可区分是正常的
+
+  sodium_source_balance:
+    enabled: true
+    weight: 0.5
+    params:
+      low_sodium_threshold_mg: 50
+      max_share_from_low_na: 0.30
+
+  energy_closure:
+    enabled: true
+    weight: 0.3  # 肉类脂肪含量高, 能量闭合更重要
+
+  category_prior:
+    enabled: true
+    weight: 0.1
+    params:
+      max_single_ingredient: 0.95   # 炸鸡可以 95% 是鸡肉
+
+  # 肉类特有: 油不应超过肉类
+  oil_vs_meat_prior:
+    enabled: true
+    priority: P4
+    type: soft_penalty
+    weight: 0.1
+    description: "烹饪用油的比例不应超过主料肉类的比例"
+    params:
+      oil_keywords: [oil, fat, butter, margarine, lard, shortening]
+      meat_keywords: [beef, pork, chicken, fish, meat, turkey, lamb, seafood, shrimp, salmon, tuna, cod, tilapia, catfish, bacon, sausage, ham, steak, roast, chop, fillet, breast, thigh, wing, drumstick]

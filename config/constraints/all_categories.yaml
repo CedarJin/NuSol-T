@@ -1,0 +1,14 @@
+# 全品类通用约束 + 各品类覆盖
+# 当无法确定食品类别时, 使用此配置
+
+category: all
+extends: default
+
+# 继承 default.yaml 的全部约束
+# 此文件仅做文档说明, 实际运行使用 default.yaml
+#
+# 品类特定优化约束:
+#   baked_goods.yaml    — 烘焙食品 (面粉主料先验)
+#   dairy_desserts.yaml — 乳制品/甜点 (相似冰淇淋防极端)
+#   meat_seafood.yaml   — 肉类/海鲜 (油不超过肉)
+#   soups_stews.yaml    — 汤/炖菜 (水为主要成分)

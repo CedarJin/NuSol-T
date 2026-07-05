@@ -1,0 +1,151 @@
+# NuSol-T Constraint Configuration
+# Each constraint has: name, type, priority (P0-P4), weight, conditions, params
+#
+# Constraint types:
+#   mass_balance     — Σx = 1, x ≥ 0  (always enabled, P0)
+#   ingredient_order — x_i ≥ x_{i+1}   (P1)
+#   label_interval   — predicted nutrients within FDA intervals (P2)
+#   unique_source_lb — ingredient lower bound from unique nutrient source (P3)
+#   similarity_split — penalize extreme splits for near-identical ingredients (P4)
+#   category_prior   — ingredient fraction priors by food category (P4)
+
+run_id: default_v1
+
+constraints:
+
+  # ── P0: Non-relaxable ──
+  mass_balance:
+    enabled: true
+    priority: P0
+    type: hard_eq
+    description: "Total ingredient mass sums to 100%"
+
+  # ── P1: Regulatory structure ──
+  ingredient_order:
+    enabled: true
+    priority: P1
+    type: hard_ineq
+    description: "Ingredients in descending order by weight (FDA 21 CFR 101.4)"
+
+  # ── P2: Label interval fit ──
+  label_interval_fit:
+    enabled: true
+    priority: P2
+    type: slack_quadratic
+    weight: 10.0
+    description: "Predicted nutrients within FDA rounding-derived intervals"
+    params:
+      rounding_standard: FDA_21CFR_101_9
+      interval_type: "inclusive_lower"
+
+  # ── P3: Food science priors ──
+
+  unique_source_lower_bound:
+    enabled: true
+    priority: P3
+    type: hard_lower_bound
+    description: >
+      When one ingredient provides >90% of a nutrient's density,
+      its fraction is bounded below by label_lo / nutrient_density.
+      Example: fruit provides 100% of sugar → fruit ≥ sugar_lo / fruit_sugar_density
+    params:
+      dominance_threshold: 0.90    # ingredient must provide >90% of nutrient density
+      min_bound: 0.01              # ignore bounds below 1%
+      max_bound: 0.95              # ignore bounds above 95% (degenerate)
+      nutrients: all               # apply to all nutrients (or list specific ones)
+      food_categories: all         # apply to all food categories
+
+  energy_closure:
+    enabled: true
+    priority: P3
+    type: soft_penalty
+    weight: 0.2
+    description: "Energy from macronutrients (4/9/4 Atwater) should match label energy"
+    params:
+      atwater_factors:
+        protein: 4.0
+        fat: 9.0
+        carbohydrate: 4.0
+        fiber: 2.0
+        alcohol: 7.0
+      tolerance_kcal: 5.0           # allow ±5 kcal deviation before penalty
+
+  water_solid_balance:
+    enabled: true
+    priority: P3
+    type: soft_penalty
+    weight: 0.5
+    description: "Water + protein + fat + carbohydrate + fiber + ash ≈ 100g"
+    params:
+      tolerance_g: 2.0             # allow ±2g deviation before penalty
+      include_ash: true
+      estimate_ash_if_missing: true
+
+  sodium_source_balance:
+    enabled: true
+    priority: P3
+    type: soft_penalty
+    weight: 0.5
+    description: >
+      High-sodium ingredients should account for most sodium.
+      Penalizes when low-Na ingredient (<50mg/100g) contributes >30% of total Na.
+    params:
+      low_sodium_threshold_mg: 50
+      max_share_from_low_na: 0.30
+
+  added_sugar_source:
+    enabled: true
+    priority: P3
+    type: soft_penalty
+    weight: 0.3
+    description: >
+      Added sugars should come from sugar/syrup ingredients.
+      Sugar keywords: sugar, sucrose, fructose, glucose, syrup, honey,
+      molasses, dextrose, cane, juice concentrate, nectar, agave.
+    params:
+      sugar_keywords:
+        - sugar
+        - sucrose
+        - fructose
+        - glucose
+        - syrup
+        - honey
+        - molasses
+        - dextrose
+        - cane
+        - juice concentrate
+        - nectar
+        - agave
+
+  fatty_acid_closure:
+    enabled: true
+    priority: P3
+    type: soft_penalty
+    weight: 0.3
+    description: "Saturated + monounsaturated + polyunsaturated + trans ≤ total fat"
+    params:
+      tolerance_g: 0.5
+
+  # ── P4: Statistical / category priors ──
+
+  similarity_anti_extreme:
+    enabled: true
+    priority: P4
+    type: soft_penalty
+    weight: 1.0
+    description: >
+      When two ingredients have highly correlated nutrient profiles (cosine > 0.95),
+      penalize extreme splits (>80% to one ingredient).
+      This prevents the solver from assigning 100% to one of two near-identical items.
+    params:
+      cosine_threshold: 0.95
+      max_imbalance: 0.60            # |x_i - x_j| > 0.60 triggers penalty
+
+  category_prior:
+    enabled: false                   # disabled by default; enable per-category
+    priority: P4
+    type: soft_penalty
+    weight: 0.1
+    description: "Category-specific ingredient fraction priors (see category configs)"
+    params:
+      max_single_ingredient: 0.85    # no single ingredient > 85% (general prior)

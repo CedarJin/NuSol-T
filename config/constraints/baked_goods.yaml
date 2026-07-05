@@ -1,0 +1,36 @@
+# 烘焙食品 (面包、饼干、蛋糕等)
+# 特征: 面粉为第一主料(40-70%), 糖/油为辅, 盐<2%
+# 挑战: 面粉和糖的 Big7 profile 差异大, 容易通过 nutrient bound 约束
+
+category: baked_goods
+extends: default
+
+constraints:
+  ingredient_order:
+    enabled: true
+
+  unique_source_lower_bound:
+    enabled: true
+    params:
+      dominance_threshold: 0.90
+
+  similarity_anti_extreme:
+    enabled: false  # 烘焙食品的配料 profile 差异通常足够
+
+  category_prior:
+    enabled: true
+    weight: 0.1
+    params:
+      max_single_ingredient: 0.75   # 面粉通常不超过 75%
+
+  # 烘焙食品特有: 面粉是核心
+  flour_mass_prior:
+    enabled: true
+    priority: P4
+    type: soft_penalty
+    weight: 0.05
+    description: "面粉类配料通常在 40-70%, 不太可能低于 30%"
+    params:
+      flour_keywords: [flour, wheat, grain, starch]
+      min_flour_fraction: 0.30
+      max_flour_fraction: 0.75
