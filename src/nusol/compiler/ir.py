@@ -28,6 +28,7 @@ class LinearConstraintIR:
     upper: float | None = None
     mode: Literal["hard", "soft"] = "hard"
     weight: float = 1.0
+    source_id: str | None = None
 
     def __post_init__(self) -> None:
         if self.lower is None and self.upper is None:
@@ -45,6 +46,7 @@ class QuadraticPenaltyIR:
     linear: np.ndarray = field(repr=False)  # shape (n_vars,)
     constant: float = 0.0
     weight: float = 1.0
+    source_id: str | None = None
 
 
 @dataclass(frozen=True)

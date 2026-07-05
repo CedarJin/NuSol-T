@@ -44,6 +44,12 @@ class ScipySLSQPBackend(PointBackend):
         t0 = time.perf_counter()
         n = problem.n_variables
         ing_ids = list(problem.ingredient_ids)
+        variable_lower = [
+            v.lower if v.lower is not None else -1e10 for v in problem.variables
+        ]
+        variable_upper = [
+            v.upper if v.upper is not None else 1e10 for v in problem.variables
+        ]
 
         # ── Separate constraints ──
         # Hard constraints go to SciPy directly
@@ -51,7 +57,9 @@ class ScipySLSQPBackend(PointBackend):
         A_hard = []
         lb_hard = []
         ub_hard = []
-        soft_intervals: list[tuple[np.ndarray, float, float, float]] = []
+        soft_intervals: list[
+            tuple[np.ndarray, float | None, float | None, float]
+        ] = []
         # (coefficients, lower, upper, weight)
 
         for lc in problem.linear_constraints:
@@ -104,7 +112,7 @@ class ScipySLSQPBackend(PointBackend):
                     if lo > -1e9:
                         scipy_cons_feas.append({
                             "type": "ineq",
-                            "fun": lambda x, r=row, l=lo: float(r @ x - l),
+                            "fun": lambda x, r=row, lower=lo: float(r @ x - lower),
                         })
                     if hi < 1e9:
                         scipy_cons_feas.append({
@@ -112,8 +120,10 @@ class ScipySLSQPBackend(PointBackend):
                             "fun": lambda x, r=row, h=hi: float(h - r @ x),
                         })
 
-            bounds_feas = Bounds([0.0] * n, [1.0] * n)
-            x0_feas = np.ones(n) / max(n, 1)
+            bounds_feas = Bounds(variable_lower, variable_upper)
+            x0_feas = np.array(
+                [(lo + hi) / 2 for lo, hi in zip(variable_lower, variable_upper)]
+            )
 
             res_feas = minimize(
                 objective_feas, x0_feas,
@@ -133,7 +143,9 @@ class ScipySLSQPBackend(PointBackend):
             # Try a few initial guesses for better convergence
             x0_ing = res_feas.x.copy()
         else:
-            x0_ing = np.ones(n) / max(n, 1)
+            x0_ing = np.array(
+                [(lo + hi) / 2 for lo, hi in zip(variable_lower, variable_upper)]
+            )
 
         # ── Build full objective: min Σ(weight_i * s_i²) ──
         slack_weights = np.ones(n_slack)
@@ -160,7 +172,9 @@ class ScipySLSQPBackend(PointBackend):
                 if lo > -1e9:
                     scipy_cons.append({
                         "type": "ineq",
-                        "fun": lambda x, r=row, l=lo: float(r @ x[:n] - l),
+                        "fun": lambda x, r=row, lower=lo: float(
+                            r @ x[:n] - lower
+                        ),
                     })
                 if hi < 1e9:
                     scipy_cons.append({
@@ -175,8 +189,8 @@ class ScipySLSQPBackend(PointBackend):
                 # -Ax - s <= -lo
                 scipy_cons.append({
                     "type": "ineq",
-                    "fun": lambda x, c=coeff, l=lo, si=slack_idx: (
-                        float(c @ x[:n]) + x[n + si] - l
+                    "fun": lambda x, c=coeff, lower=lo, si=slack_idx: (
+                        float(c @ x[:n]) + x[n + si] - lower
                     ),
                 })
                 slack_idx += 1
@@ -199,8 +213,8 @@ class ScipySLSQPBackend(PointBackend):
 
         # Bounds: x ∈ [0, 1], slack ∈ [0, ∞)
         bounds = Bounds(
-            [0.0] * n + [0.0] * n_slack,
-            [1.0] * n + [1e6] * n_slack,
+            variable_lower + [0.0] * n_slack,
+            variable_upper + [1e6] * n_slack,
         )
 
         # Initial guess for slack variables
@@ -230,10 +244,7 @@ class ScipySLSQPBackend(PointBackend):
 
             solve_time = time.perf_counter() - t0
 
-            x_opt = np.clip(result.x[:n], 0.0, 1.0)
-            total = x_opt.sum()
-            if total > 0:
-                x_opt = x_opt / total
+            x_opt = np.clip(result.x[:n], variable_lower, variable_upper)
 
             # Verify hard constraint satisfaction
             for i in range(n_hard):
@@ -243,7 +254,7 @@ class ScipySLSQPBackend(PointBackend):
                     for seed in range(10):
                         rng = np.random.default_rng(seed)
                         x0_retry = np.zeros(nv)
-                        x0_retry[:n] = rng.dirichlet(np.ones(n))
+                        x0_retry[:n] = rng.uniform(variable_lower, variable_upper)
                         for si, (c, lo, hi, w) in enumerate(soft_intervals):
                             pred = float(c @ x0_retry[:n])
                             if lo is not None:
@@ -261,10 +272,7 @@ class ScipySLSQPBackend(PointBackend):
                                 "disp": False,
                             },
                         )
-                        x_opt = np.clip(result.x[:n], 0.0, 1.0)
-                        total = x_opt.sum()
-                        if total > 0:
-                            x_opt = x_opt / total
+                        x_opt = np.clip(result.x[:n], variable_lower, variable_upper)
                         all_ok = True
                         for j in range(n_hard):
                             v = A_hard[j] @ x_opt

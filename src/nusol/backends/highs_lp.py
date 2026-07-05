@@ -84,7 +84,7 @@ class HighsLPBackend(BoundsBackend):
         A_eq = np.array(A_eq_rows) if A_eq_rows else np.zeros((0, n))
         b_eq = np.array(b_eq_vals)
 
-        bounds = [(0.0, 1.0) for _ in range(n)]
+        bounds = [(v.lower, v.upper) for v in problem.variables]
 
         # ── Feasibility check: solve a dummy LP first ──
         # If no feasible point exists, all bound LPs will fail.
@@ -114,9 +114,10 @@ class HighsLPBackend(BoundsBackend):
                 bounds=bounds, method="highs",
             )
             if res_lo.success:
-                lo = float(np.clip(res_lo.x[i], 0.0, 1.0))
+                lo = float(res_lo.x[i])
             else:
-                lo = 0.0
+                variable_lower = problem.variables[i].lower
+                lo = variable_lower if variable_lower is not None else 0.0
                 n_failed += 1
 
             # Upper bound: maximize x_i = minimize -x_i
@@ -127,9 +128,10 @@ class HighsLPBackend(BoundsBackend):
                 bounds=bounds, method="highs",
             )
             if res_hi.success:
-                hi = float(np.clip(res_hi.x[i], 0.0, 1.0))
+                hi = float(res_hi.x[i])
             else:
-                hi = 1.0
+                variable_upper = problem.variables[i].upper
+                hi = variable_upper if variable_upper is not None else 1.0
                 n_failed += 1
 
             bounds_dict[ing_id] = (lo, hi)

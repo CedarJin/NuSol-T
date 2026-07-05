@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Optional
 
 import typer
 
@@ -73,7 +72,7 @@ def validate(
 @app.command()
 def resolve(
     path: str = typer.Argument(..., help="Path to YAML problem document"),
-    output: Optional[str] = typer.Option(
+    output: str | None = typer.Option(
         None, "--output", "-o", help="Output path for resolved YAML (default: stdout)",
     ),
 ) -> None:
@@ -83,7 +82,7 @@ def resolve(
     all inheritance flattened. If --output is provided, writes to file;
     otherwise prints to stdout.
     """
-    from nusol.config.errors import ConfigError, SchemaValidationError
+    from nusol.config.errors import ConfigError
     from nusol.config.resolver import ConfigResolver, yaml_to_canonical_string
 
     try:
@@ -150,7 +149,7 @@ def solve(
     dry_run: bool = typer.Option(
         False, "--dry-run", help="Compile and show IR, do not solve",
     ),
-    output: Optional[str] = typer.Option(
+    output: str | None = typer.Option(
         None, "--output", "-o", help="Output path for result JSON",
     ),
 ) -> None:
@@ -161,21 +160,28 @@ def solve(
     from nusol.api import solve as solve_api
     from nusol.compiler.compiler import compile_problem
     from nusol.config.errors import ConfigError, NuSolError
-    from nusol.config.loader import ConfigLoader
+    from nusol.config.resolver import ConfigResolver
     from nusol.domain.builder import build_problem
 
     try:
         if dry_run:
             # Load, build, compile — show structure only
-            loader = ConfigLoader()
-            doc = loader.load_from_path(path)
-            problem = build_problem(doc)
+            doc = ConfigResolver().resolve(path)
+            problem = build_problem(doc, base_dir=Path(path).resolve().parent)
             compiled = compile_problem(problem)
 
             typer.secho(f"Problem: {problem.problem_id}", bold=True)
             typer.echo(f"  Ingredients: {len(compiled.variables)}")
-            typer.echo(f"  Hard constraints: {sum(1 for lc in compiled.linear_constraints if lc.mode == 'hard')}")
-            typer.echo(f"  Soft constraints: {sum(1 for lc in compiled.linear_constraints if lc.mode == 'soft')}")
+            hard_count = sum(
+                1 for constraint in compiled.linear_constraints
+                if constraint.mode == "hard"
+            )
+            soft_count = sum(
+                1 for constraint in compiled.linear_constraints
+                if constraint.mode == "soft"
+            )
+            typer.echo(f"  Hard constraints: {hard_count}")
+            typer.echo(f"  Soft constraints: {soft_count}")
             typer.echo(f"  Capabilities: {compiled.required_capabilities}")
             typer.echo("")
             typer.echo("DRY-RUN: problem compiled but not solved")
@@ -188,11 +194,16 @@ def solve(
                 f"Solve SUCCESS ✓  ({result['problem_id']})",
                 fg=typer.colors.GREEN, bold=True,
             )
-            typer.echo(f"  fractions:")
+            typer.echo("  fractions:")
             for ing, frac in sorted(result["fractions"].items(),
                                      key=lambda x: x[1], reverse=True):
-                lo, hi = result["bounds"].get(ing, [0, 1])
-                typer.echo(f"    {ing:20s} {frac:.4f}  [{lo:.4f}, {hi:.4f}]")
+                if ing in result["bounds"]:
+                    lo, hi = result["bounds"][ing]
+                    typer.echo(
+                        f"    {ing:20s} {frac:.4f}  [{lo:.4f}, {hi:.4f}]"
+                    )
+                else:
+                    typer.echo(f"    {ing:20s} {frac:.4f}")
             typer.echo(f"  solve_time: {result['diagnostics']['total_time_s']:.4f}s")
         else:
             typer.secho(

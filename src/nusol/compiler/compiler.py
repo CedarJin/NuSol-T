@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
-from typing import Any
+from dataclasses import replace
+from typing import Literal, cast
 
-import numpy as np
-
-from nusol.compiler.ir import CompiledProblem, LinearConstraintIR, VariableIR
-from nusol.config.errors import CompileError, UnsupportedConstraintError
+from nusol.compiler.ir import (
+    CompiledProblem,
+    LinearConstraintIR,
+    QuadraticPenaltyIR,
+    VariableIR,
+)
+from nusol.config.errors import UnsupportedConstraintError
 from nusol.constraints.registry import get_constraint_registry
 from nusol.domain.problem import IngredientProblem
 
@@ -27,7 +31,6 @@ def compile_problem(problem: IngredientProblem) -> CompiledProblem:
         UnsupportedConstraintError: If an enabled constraint type is not registered.
     """
     n_ingredients = problem.n_ingredients
-    n_nutrients = problem.n_nutrients
     n_vars = n_ingredients  # No slack/moisture variables in IR (added by backend)
 
     ingredient_ids = problem.ingredient_ids
@@ -37,25 +40,34 @@ def compile_problem(problem: IngredientProblem) -> CompiledProblem:
 
     # Initialize IR components
     variables = tuple(
-        VariableIR(id=ing.id, lower=0.0, upper=1.0)
+        VariableIR(
+            id=ing.id,
+            lower=problem.variable_lower,
+            upper=problem.variable_upper,
+        )
         for ing in problem.ingredients
     )
 
     linear_constraints: list[LinearConstraintIR] = []
+    quadratic_penalties: list[QuadraticPenaltyIR] = []
 
     registry = get_constraint_registry()
 
     # Process nutrient_interval constraints from observations.
     # Use mode/weight from the YAML constraint if declared.
-    _DEFAULT_NU_MODE = "soft"
-    _DEFAULT_NU_WEIGHT = 10.0
-    nu_mode = _DEFAULT_NU_MODE
-    nu_weight = _DEFAULT_NU_WEIGHT
+    default_nu_mode: Literal["hard", "soft"] = "soft"
+    default_nu_weight = 10.0
+    nu_mode: Literal["hard", "soft"] = default_nu_mode
+    nu_weight = default_nu_weight
+    nu_source_id: str | None = None
     # Look for a nutrient_interval-type constraint in the YAML config
     for c_id, c_info in constraint_configs.items():
         if c_info.get("type") == "nutrient_interval":
-            nu_mode = c_info.get("mode", _DEFAULT_NU_MODE)
-            nu_weight = c_info.get("weight", _DEFAULT_NU_WEIGHT)
+            nu_mode = cast(
+                Literal["hard", "soft"], c_info.get("mode", default_nu_mode)
+            )
+            nu_weight = c_info.get("weight", default_nu_weight)
+            nu_source_id = c_id
             break
 
     for nut_id, (lo, hi) in problem.observation_intervals.items():
@@ -70,6 +82,7 @@ def compile_problem(problem: IngredientProblem) -> CompiledProblem:
                 upper=-lo,
                 mode=nu_mode,
                 weight=nu_weight,
+                source_id=nu_source_id,
             ),
         )
         linear_constraints.append(
@@ -79,6 +92,7 @@ def compile_problem(problem: IngredientProblem) -> CompiledProblem:
                 upper=hi,
                 mode=nu_mode,
                 weight=nu_weight,
+                source_id=nu_source_id,
             ),
         )
 
@@ -93,6 +107,7 @@ def compile_problem(problem: IngredientProblem) -> CompiledProblem:
                 upper=val,
                 mode=nu_mode,
                 weight=nu_weight,
+                source_id=nu_source_id,
             ),
         )
 
@@ -108,6 +123,11 @@ def compile_problem(problem: IngredientProblem) -> CompiledProblem:
                 f"Constraint '{c_id}' has no type specified. "
                 "Ensure it is passed via constraint_types or constraint_configs."
             )
+
+        # Observation intervals are compiled above because they need the
+        # composition matrix. Do not invoke the marker-only builtin again.
+        if c_type == "nutrient_interval":
+            continue
 
         # Handle plugin constraints (type: plugin → look up actual name in config)
         plugin_name = c_type
@@ -143,13 +163,33 @@ def compile_problem(problem: IngredientProblem) -> CompiledProblem:
         )
         for frag in ir_fragments:
             if isinstance(frag, LinearConstraintIR):
-                linear_constraints.append(frag)
+                linear_constraints.append(
+                    replace(
+                        frag,
+                        mode=cfg.get("mode", "hard"),
+                        weight=cfg.get("weight", 1.0),
+                        source_id=c_id,
+                    )
+                )
+            elif isinstance(frag, QuadraticPenaltyIR):
+                quadratic_penalties.append(
+                    replace(
+                        frag,
+                        weight=cfg.get("weight", 1.0),
+                        source_id=c_id,
+                    )
+                )
+            else:
+                raise UnsupportedConstraintError(
+                    f"Constraint '{c_id}' returned unsupported IR fragment "
+                    f"{type(frag).__name__}"
+                )
 
     # Build CompiledProblem
     compiled = CompiledProblem(
         variables=variables,
         linear_constraints=tuple(linear_constraints),
-        quadratic_penalties=(),
+        quadratic_penalties=tuple(quadratic_penalties),
         ingredient_ids=tuple(ingredient_ids),
         nutrient_ids=tuple(nutrient_ids),
     )

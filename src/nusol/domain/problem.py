@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 import numpy as np
 from pydantic import BaseModel, Field
 
@@ -49,6 +47,8 @@ class IngredientProblem(BaseModel):
         default_factory=tuple,
         description="IDs of enabled priors",
     )
+    variable_lower: float = 0.0
+    variable_upper: float = 1.0
 
     @property
     def n_ingredients(self) -> int:

@@ -4,12 +4,10 @@ from __future__ import annotations
 
 import csv
 import hashlib
-import json
 from pathlib import Path
 from typing import Any
 
 import numpy as np
-import yaml
 
 from nusol.config.errors import ResourceError
 from nusol.domain.nutrient import CANONICAL_NUTRIENT_MAP, Missingness, NutrientValue
@@ -32,6 +30,8 @@ class CompositionMatrix:
         nutrient_ids: list[str],
         units: list[str],
         statuses: list[list[Missingness]] | None = None,
+        source_path: str | None = None,
+        source_sha256: str | None = None,
     ):
         if len(values) != len(ingredient_ids):
             raise ValueError(
@@ -50,6 +50,8 @@ class CompositionMatrix:
         self._ingredient_ids = tuple(ingredient_ids)
         self._nutrient_ids = tuple(nutrient_ids)
         self._units = tuple(units)
+        self._source_path = source_path
+        self._source_sha256 = source_sha256
 
         # Build numeric matrix: None → NaN
         matrix = np.full((len(ingredient_ids), n_nutrients), np.nan, dtype=float)
@@ -87,6 +89,16 @@ class CompositionMatrix:
     def shape(self) -> tuple[int, int]:
         return self._matrix.shape
 
+    @property
+    def resource_metadata(self) -> dict[str, str] | None:
+        if self._source_path is None:
+            return None
+        return {
+            "kind": "composition_csv",
+            "path": self._source_path,
+            "sha256": self._source_sha256 or "",
+        }
+
     def get_value(self, ingredient_id: str, nutrient_id: str) -> NutrientValue:
         """Get a single cell as a NutrientValue."""
         i = self._ingredient_ids.index(ingredient_id)
@@ -102,7 +114,6 @@ class CompositionMatrix:
         self, ingredient_id: str
     ) -> dict[str, NutrientValue]:
         """Get all nutrients for an ingredient."""
-        i = self._ingredient_ids.index(ingredient_id)
         result = {}
         for j, nid in enumerate(self._nutrient_ids):
             result[nid] = self.get_value(ingredient_id, nid)
@@ -149,6 +160,9 @@ class CompositionMatrix:
         key_column: str = "ingredient_id",
         missing_value_policy: str = "error",
         yaml_ingredient_ids: list[str] | None = None,
+        yaml_nutrient_ids: list[str] | None = None,
+        yaml_units: list[str] | None = None,
+        allow_extra_nutrients: bool = False,
         sha256: str | None = None,
     ) -> CompositionMatrix:
         """Build from a CSV file path."""
@@ -157,8 +171,8 @@ class CompositionMatrix:
             raise ResourceError(f"Composition CSV not found: {path}")
 
         # SHA-256 checksum validation (R1.3)
+        actual_sha = hashlib.sha256(path.read_bytes()).hexdigest()
         if sha256 is not None:
-            actual_sha = hashlib.sha256(path.read_bytes()).hexdigest()
             if actual_sha != sha256:
                 raise ResourceError(
                     f"SHA-256 mismatch for {path}: "
@@ -183,7 +197,7 @@ class CompositionMatrix:
                 if not ing_id:
                     continue
                 ingredient_ids.append(ing_id)
-                values = []
+                values: list[float | None] = []
                 for nid in nutrient_ids:
                     raw = row.get(nid, "").strip()
                     if raw in ("", "NA", "NaN"):
@@ -202,13 +216,35 @@ class CompositionMatrix:
                             )
                 rows.append(values)
 
+        duplicate_ids = sorted({x for x in ingredient_ids if ingredient_ids.count(x) > 1})
+        if duplicate_ids:
+            raise ResourceError(f"Duplicate ingredient IDs in CSV: {duplicate_ids}")
+
+        if yaml_nutrient_ids is not None:
+            missing_nutrients = set(yaml_nutrient_ids) - set(nutrient_ids)
+            extra_nutrients = set(nutrient_ids) - set(yaml_nutrient_ids)
+            if missing_nutrients:
+                raise ResourceError(
+                    f"Missing nutrients in CSV: {sorted(missing_nutrients)}"
+                )
+            if extra_nutrients and not allow_extra_nutrients:
+                raise ResourceError(
+                    f"Extra nutrients in CSV: {sorted(extra_nutrients)}"
+                )
+            column_indexes = [nutrient_ids.index(nid) for nid in yaml_nutrient_ids]
+            rows = [[row[j] for j in column_indexes] for row in rows]
+            nutrient_ids = list(yaml_nutrient_ids)
+
         # Infer units from canonical map
-        units = []
-        for nid in nutrient_ids:
-            if nid in CANONICAL_NUTRIENT_MAP:
-                units.append(CANONICAL_NUTRIENT_MAP[nid][1])
-            else:
-                units.append("")
+        if yaml_units is not None:
+            units = list(yaml_units)
+        else:
+            units = []
+            for nid in nutrient_ids:
+                if nid in CANONICAL_NUTRIENT_MAP:
+                    units.append(CANONICAL_NUTRIENT_MAP[nid][1])
+                else:
+                    units.append("")
 
         # Reorder rows to match YAML ingredient order (R0.1)
         if yaml_ingredient_ids is not None:
@@ -227,8 +263,16 @@ class CompositionMatrix:
             # Reorder: build dict then read in YAML order
             row_by_id = dict(zip(ingredient_ids, rows))
             rows = [row_by_id[i] for i in yaml_ingredient_ids]
+            ingredient_ids = list(yaml_ingredient_ids)
 
-        return cls(rows, ingredient_ids, nutrient_ids, units)
+        return cls(
+            rows,
+            ingredient_ids,
+            nutrient_ids,
+            units,
+            source_path=str(path.resolve()),
+            source_sha256=actual_sha,
+        )
 
     def to_dict(self) -> dict[str, Any]:
         """Export to dict for serialization."""

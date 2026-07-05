@@ -6,10 +6,9 @@ All models use ``extra="forbid"`` to reject unknown fields at load time.
 from __future__ import annotations
 
 from enum import Enum
-from typing import Annotated, Any, Literal, Optional
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
-
 
 # ── Version & Basis ───────────────────────────────────────────────────────────
 
@@ -36,7 +35,7 @@ class BasisSpec(BaseModel, extra="forbid"):
 class EvidenceSpec(BaseModel, extra="forbid"):
     status: Literal["validated", "experimental"]
     source: str
-    version: Optional[str] = None
+    version: str | None = None
 
 
 # ── Ingredients ───────────────────────────────────────────────────────────────
@@ -51,8 +50,11 @@ class IngredientSpec(BaseModel, extra="forbid"):
                     description="Stable ingredient identifier used throughout the document")
     name: str = Field(..., min_length=1,
                       description="Human-readable ingredient name")
-    declaration_position: int = Field(..., ge=0,
-                                      description="0-based position in the ingredient declaration list")
+    declaration_position: int = Field(
+        ...,
+        ge=0,
+        description="0-based position in the ingredient declaration list",
+    )
     declaration_group: DeclarationGroup = DeclarationGroup.MAIN
 
 
@@ -105,13 +107,13 @@ class NutrientObservation(BaseModel, extra="forbid"):
     nutrient: str = Field(..., description="Canonical nutrient identifier")
     unit: str
     basis: NutrientBasis = NutrientBasis.PER_100G
-    interval: Optional[tuple[float, float]] = Field(
+    interval: tuple[float, float] | None = Field(
         None, description="Inclusive interval [lo, hi] for the true value",
     )
-    exact: Optional[float] = Field(
+    exact: float | None = Field(
         None, description="Known exact value (e.g. from FNDDS ground truth)",
     )
-    less_than: Optional[float] = Field(
+    less_than: float | None = Field(
         None, description="Upper bound for 'less than X' declarations",
     )
 
@@ -153,6 +155,12 @@ class IngredientFractionVariableSpec(BaseModel, extra="forbid"):
     lower: float = Field(0.0, ge=0.0, le=1.0)
     upper: float = Field(1.0, ge=0.0, le=1.0)
 
+    @model_validator(mode="after")
+    def validate_bounds(self) -> IngredientFractionVariableSpec:
+        if self.lower > self.upper:
+            raise ValueError("ingredient fraction lower must not exceed upper")
+        return self
+
 
 class VariableSpec(BaseModel, extra="forbid"):
     ingredient_fractions: IngredientFractionVariableSpec
@@ -177,7 +185,7 @@ class ConstraintSpec(BaseModel, extra="forbid"):
     enabled: bool = True
     weight: float = Field(1.0, gt=0)
     config: dict[str, Any] = Field(default_factory=dict)
-    evidence: Optional[EvidenceSpec] = None
+    evidence: EvidenceSpec | None = None
 
 
 # ── Priors ────────────────────────────────────────────────────────────────────
@@ -224,12 +232,15 @@ class BoundsSolverSpec(BaseModel, extra="forbid"):
                 "hard_constraints_only mode does not accept slack_budgets; "
                 "use explicit_slack_budget to enable budgets"
             )
+        negative = {key: value for key, value in self.slack_budgets.items() if value < 0}
+        if negative:
+            raise ValueError(f"slack_budgets must be non-negative: {negative}")
         return self
 
 
 class SolverSpec(BaseModel, extra="forbid"):
-    point: Optional[PointSolverSpec] = None
-    bounds: Optional[BoundsSolverSpec] = None
+    point: PointSolverSpec | None = None
+    bounds: BoundsSolverSpec | None = None
 
     @model_validator(mode="after")
     def at_least_one_solver(self) -> SolverSpec:

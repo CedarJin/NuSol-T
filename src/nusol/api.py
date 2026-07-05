@@ -9,18 +9,19 @@ Usage::
 from __future__ import annotations
 
 import hashlib
-import json
-import os
 import platform
 import subprocess
 import time
-from datetime import datetime, timezone
+from dataclasses import replace
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from nusol.backends.base import SolveStats
 from nusol.backends.registry import get_backend_registry
 from nusol.compiler.compiler import compile_problem
-from nusol.config.errors import ConfigError, NuSolError
+from nusol.compiler.ir import CompiledProblem
+from nusol.config.errors import ConfigError, NuSolError, UnsupportedConstraintError
 from nusol.config.resolver import ConfigResolver, yaml_to_canonical_string
 from nusol.domain.builder import build_problem
 
@@ -62,12 +63,10 @@ def solve(yaml_path: str | Path) -> dict[str, Any]:
     # 1. Resolve (load + extends + defaults) into a single validated SolveDocument
     resolver = ConfigResolver()
     doc = resolver.resolve(str(path))
-
-    # Also get canonical dict for manifest
-    resolved_dict = resolver.resolve_to_dict(str(path))
+    resolved_dict = doc.model_dump(mode="json")
 
     # 2. Build domain model from resolved document
-    problem = build_problem(doc)
+    problem = build_problem(doc, base_dir=path.resolve().parent)
 
     # 3. Compile to IR
     compiled = compile_problem(problem)
@@ -77,31 +76,37 @@ def solve(yaml_path: str | Path) -> dict[str, Any]:
     solver_spec = doc.solver
 
     # 5. Solve point (if configured)
-    fractions = {}
+    fractions: dict[str, float] = {}
     point_stats = None
     if solver_spec.point:
         point_name = solver_spec.point.backend.value
         point_opts = solver_spec.point.options
         reg.check_point_capabilities(point_name, compiled.required_capabilities)
         p_cls = reg.get_point(point_name)
-        p_backend = p_cls(options=point_opts)
+        p_backend = p_cls(options=point_opts)  # type: ignore[call-arg]
         try:
             fractions, point_stats = p_backend.solve_point(compiled)
-        except NuSolError:
-            point_stats = None
+        except NuSolError as exc:
+            point_stats = SolveStats(False, "error", str(exc))
 
-    # 6. Solve bounds (default: use highs_lp even without explicit bounds config)
-    bounds_dict = {}
+    # 6. Solve bounds only when configured.
+    bounds_dict: dict[str, tuple[float, float]] = {}
     bounds_stats = None
-    b_name = solver_spec.bounds.backend.value if solver_spec.bounds else "highs_lp"
-    b_caps = frozenset({"continuous", "linear_constraints"})
-    try:
-        reg.check_bounds_capabilities(b_name, b_caps)
-        b_cls = reg.get_bounds(b_name)
-        b_backend = b_cls()
-        bounds_dict, bounds_stats = b_backend.solve_bounds(compiled)
-    except NuSolError:
-        bounds_dict = {}
+    if solver_spec.bounds:
+        b_name = solver_spec.bounds.backend.value
+        bounds_problem = _problem_for_bounds(
+            compiled,
+            solver_spec.bounds.feasible_region,
+            solver_spec.bounds.slack_budgets,
+        )
+        b_caps = frozenset({"continuous", "linear_constraints"})
+        try:
+            reg.check_bounds_capabilities(b_name, b_caps)
+            b_cls = reg.get_bounds(b_name)
+            b_backend = b_cls()
+            bounds_dict, bounds_stats = b_backend.solve_bounds(bounds_problem)
+        except NuSolError as exc:
+            bounds_stats = SolveStats(False, "error", str(exc))
 
     # 7. Build result
     t_end = time.perf_counter()
@@ -114,9 +119,20 @@ def solve(yaml_path: str | Path) -> dict[str, Any]:
         "total_time_s": t_end - t_start,
     }
 
+    configured_stats = [
+        stats
+        for configured, stats in (
+            (solver_spec.point is not None, point_stats),
+            (solver_spec.bounds is not None, bounds_stats),
+        )
+        if configured
+    ]
+    success = bool(configured_stats) and all(
+        stats is not None and stats.success for stats in configured_stats
+    )
     result: dict[str, Any] = {
-        "success": point_stats is not None and point_stats.success if point_stats else False,
-        "status": "optimal" if point_stats and point_stats.success else "error",
+        "success": success,
+        "status": "optimal" if success else "error",
         "problem_id": problem.problem_id,
         "fractions": fractions,
         "bounds": {
@@ -127,11 +143,20 @@ def solve(yaml_path: str | Path) -> dict[str, Any]:
         "manifest": _build_manifest(
             problem.problem_id, str(path), resolved_dict,
             diagnostics, fractions,
+            resources=[problem.composition.resource_metadata]
+            if problem.composition.resource_metadata else [],
+            feasible_region=(
+                solver_spec.bounds.feasible_region if solver_spec.bounds else None
+            ),
         ),
     }
 
-    if not result["success"] and point_stats is not None:
-        result["error"] = point_stats.message
+    if not result["success"]:
+        failed = next(
+            (stats for stats in configured_stats if stats is not None and not stats.success),
+            None,
+        )
+        result["error"] = failed.message if failed else "Configured solver did not run"
 
     return result
 
@@ -142,9 +167,11 @@ def _build_manifest(
     resolved_dict: dict[str, Any],
     diagnostics: dict[str, Any],
     fractions: dict[str, float],
+    resources: list[dict[str, str]],
+    feasible_region: str | None,
 ) -> dict[str, Any]:
     """Build run manifest with reproducibility information."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     # Compute config checksum
     config_str = yaml_to_canonical_string(resolved_dict)
@@ -171,12 +198,68 @@ def _build_manifest(
         "resolved_config": {
             "sha256": config_sha256,
         },
+        "resources": resources,
         "solver": {
             "point": diagnostics.get("point", {}),
             "bounds": diagnostics.get("bounds", {}),
+            "bounds_feasible_region": feasible_region,
         },
     }
     return manifest
+
+
+def _problem_for_bounds(
+    problem: CompiledProblem,
+    feasible_region: str,
+    slack_budgets: dict[str, float],
+) -> CompiledProblem:
+    """Build the bounds feasible region declared by YAML."""
+    if feasible_region == "hard_constraints_only":
+        return problem
+
+    known_sources = {
+        constraint.source_id
+        for constraint in problem.linear_constraints
+        if constraint.mode == "soft" and constraint.source_id is not None
+    }
+    quadratic_sources = {
+        penalty.source_id
+        for penalty in problem.quadratic_penalties
+        if penalty.source_id is not None
+    }
+    unknown = set(slack_budgets) - known_sources - quadratic_sources
+    if unknown:
+        raise ConfigError(
+            f"Slack budgets reference unknown soft constraints: {sorted(unknown)}"
+        )
+    nonlinear = set(slack_budgets) & quadratic_sources
+    if nonlinear:
+        raise UnsupportedConstraintError(
+            "HiGHS bounds cannot linearize budgets for quadratic constraints: "
+            f"{sorted(nonlinear)}"
+        )
+
+    constraints = []
+    for constraint in problem.linear_constraints:
+        budget = slack_budgets.get(constraint.source_id or "")
+        if constraint.mode == "soft" and budget is not None:
+            constraints.append(
+                replace(
+                    constraint,
+                    lower=(
+                        constraint.lower - budget
+                        if constraint.lower is not None else None
+                    ),
+                    upper=(
+                        constraint.upper + budget
+                        if constraint.upper is not None else None
+                    ),
+                    mode="hard",
+                )
+            )
+        else:
+            constraints.append(constraint)
+    return replace(problem, linear_constraints=tuple(constraints))
 
 
 def _get_git_commit(path: str) -> str | None:
