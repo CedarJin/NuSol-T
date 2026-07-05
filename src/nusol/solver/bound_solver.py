@@ -1,10 +1,10 @@
-"""QPBoundSolver — feasible bounds via QP solve for each variable.
+"""QPBoundSolver — feasible bounds via linear programming for each variable.
 
 For each ingredient i:
   minimize x_i  (or maximize = minimize -x_i)
-  subject to the same QP constraints as QPSolver
+  subject to linear constraints (mass balance, order, label intervals).
 
-This gives the feasible range for each ingredient under all hard constraints.
+Uses scipy.optimize.linprog (HiGHS simplex) for speed — each bound solves in ~1-5ms.
 """
 
 from __future__ import annotations
@@ -13,25 +13,23 @@ import time
 from typing import Any
 
 import numpy as np
-from scipy.optimize import Bounds, minimize
+from scipy.optimize import linprog
 
 from nusol.constraints.base import ConstraintBase, ConstraintBuilder
 from nusol.core.schema import SolverResult
 
 
 class BoundSolver:
-    """Compute feasible lower/upper bounds for each ingredient via QP.
+    """Compute feasible lower/upper bounds via linear programming.
 
-    Each bound solve is a linear program (linear objective + linear constraints)
-    solvable in ~10ms by SLSQP.
+    Each bound is an LP with linear objective (x_i or -x_i) and linear constraints.
+    Solved with HiGHS simplex in ~1-5ms per bound.
     """
 
     def __init__(self, config: dict[str, Any] | None = None) -> None:
         self.config = config or {}
         solver_cfg = self.config.get("solver", self.config)
-        self.method = solver_cfg.get("qp_method", "SLSQP")
-        self.max_iter = solver_cfg.get("max_iter", 300)
-        self.tolerance = solver_cfg.get("tolerance", 1e-8)
+        self.method = solver_cfg.get("lp_method", "highs")
 
     def solve(
         self,
@@ -41,30 +39,18 @@ class BoundSolver:
         point_result: SolverResult | None = None,
         builder: ConstraintBuilder | None = None,
     ) -> SolverResult:
-        """Compute lower and upper bounds for each variable.
-
-        Args:
-            variables: Ingredient names.
-            constraints: Constraint list (unused; QP builds its own).
-            context: Problem context.
-            point_result: Optional point solution (used as warm start).
-            builder: Unused.
-
-        Returns:
-            SolverResult with x_lower and x_upper dicts.
-        """
         n = len(variables)
         context["n_variables"] = n
         context["ingredient_names"] = variables
 
         t0 = time.perf_counter()
 
-        A = context.get("nutrient_matrix")
+        A_mat = context.get("nutrient_matrix")
         nutrient_names = context.get("nutrient_names", [])
         target_intervals = context.get("target_intervals", {})
         main_indices = context.get("main_ingredient_indices", list(range(n)))
 
-        if A is None:
+        if A_mat is None:
             return SolverResult(success=False, message="No nutrient matrix")
 
         m = len(nutrient_names)
@@ -76,98 +62,88 @@ class BoundSolver:
                 lo[j] = interval[0]
                 hi[j] = interval[1]
 
-        nv = n + 2 * m
+        # ── Build LP constraints in standard form: A_ub @ x <= b_ub, A_eq @ x = b_eq ──
+        # Variables: [x_0..x_{n-1}]
 
-        # Warm start: use point result if available
-        x0_base = np.zeros(nv)
-        if point_result and point_result.success:
-            for i, v in enumerate(variables):
-                x0_base[i] = point_result.x_point.get(v, 1.0 / n)
-        else:
-            x0_base[:n] = 1.0 / n
+        # Equality: sum(x) = 1
+        A_eq = np.ones((1, n))
+        b_eq = np.array([1.0])
 
-        for j in range(m):
-            pred = float(np.dot(x0_base[:n], A[:, j]))
-            x0_base[n + j] = max(0.0, lo[j] - pred)
-            x0_base[n + m + j] = max(0.0, pred - hi[j])
+        # Inequality constraints:
+        # 1. Order: x_i - x_{i+1} >= 0  →  -x_i + x_{i+1} <= 0
+        # 2. Label lower: pred + s >= lo → -(x @ A[:,j]) <= -lo[j]  (no slack in LP → hard feat)
+        #    Actually: x @ A[:,j] >= lo[j] → -x @ A[:,j] <= -lo[j]
+        # 3. Label upper: x @ A[:,j] <= hi[j]
 
-        # ── Build shared constraints (same as QPSolver) ──
-        scipy_cons = [{"type": "eq", "fun": lambda x: np.sum(x[:n]) - 1.0}]
+        A_ub_rows = []
+        b_ub_vals = []
 
+        # Order: -x_i + x_{i+1} <= 0
         if len(main_indices) >= 2:
             for k in range(len(main_indices) - 1):
-                i_idx, j_idx = main_indices[k], main_indices[k + 1]
-                scipy_cons.append({
-                    "type": "ineq",
-                    "fun": lambda x, i=i_idx, j=j_idx: x[i] - x[j],
-                })
+                i, j = main_indices[k], main_indices[k + 1]
+                row = np.zeros(n)
+                row[i] = -1.0
+                row[j] = 1.0
+                A_ub_rows.append(row)
+                b_ub_vals.append(0.0)
 
+        # Label lower: -x @ A[:,j] <= -lo[j]
         for j in range(m):
-            scipy_cons.append({
-                "type": "ineq",
-                "fun": lambda x, j=j: float(np.dot(x[:n], A[:, j])) + x[n + j] - lo[j],
-            })
-            scipy_cons.append({
-                "type": "ineq",
-                "fun": lambda x, j=j: hi[j] - float(np.dot(x[:n], A[:, j])) + x[n + m + j],
-            })
+            row = -A_mat[:, j].copy()
+            A_ub_rows.append(row)
+            b_ub_vals.append(-lo[j])
 
-        for j in range(2 * m):
-            scipy_cons.append({"type": "ineq", "fun": lambda x, j=j: x[n + j]})
+        # Label upper: x @ A[:,j] <= hi[j]
+        for j in range(m):
+            row = A_mat[:, j].copy()
+            A_ub_rows.append(row)
+            b_ub_vals.append(hi[j])
 
-        bounds = Bounds([0.0] * nv, [1.0] * n + [1e6] * (2 * m))
+        A_ub = np.array(A_ub_rows) if A_ub_rows else np.zeros((0, n))
+        b_ub = np.array(b_ub_vals)
 
-        # Light slack penalty to keep solution feasible
-        def slack_penalty(x: np.ndarray) -> float:
-            s_lo = x[n : n + m]
-            s_hi = x[n + m : n + 2 * m]
-            return 1e-6 * float(np.dot(s_lo, s_lo) + np.dot(s_hi, s_hi))
+        # Bounds: x_i ∈ [0, 1]
+        bounds = [(0.0, 1.0) for _ in range(n)]
 
+        # ── Solve each bound ──
         x_lower = {}
         x_upper = {}
 
         for i in range(n):
-            # ── Lower bound: minimize x_i ──
-            def obj_min(x, i=i):
-                return x[i] + slack_penalty(x)
-
+            # Lower bound: minimize x_i
+            c = np.zeros(n)
+            c[i] = 1.0
             try:
-                res = minimize(
-                    obj_min, x0_base, method=self.method,
-                    bounds=bounds, constraints=scipy_cons,
-                    options={"maxiter": self.max_iter, "ftol": self.tolerance},
-                )
+                res = linprog(c, A_ub=A_ub, b_ub=b_ub, A_eq=A_eq, b_eq=b_eq,
+                              bounds=bounds, method=self.method)
                 if res.success:
                     x_lower[variables[i]] = float(np.clip(res.x[i], 0.0, 1.0))
                 else:
-                    x_lower[variables[i]] = float(np.clip(x0_base[i], 0.0, 1.0))
+                    x_lower[variables[i]] = 0.0
             except Exception:
-                x_lower[variables[i]] = float(np.clip(x0_base[i], 0.0, 1.0))
+                x_lower[variables[i]] = 0.0
 
-            # ── Upper bound: minimize -x_i ──
-            def obj_max(x, i=i):
-                return -x[i] + slack_penalty(x)
-
+            # Upper bound: maximize x_i = minimize -x_i
+            c = np.zeros(n)
+            c[i] = -1.0
             try:
-                res = minimize(
-                    obj_max, x0_base, method=self.method,
-                    bounds=bounds, constraints=scipy_cons,
-                    options={"maxiter": self.max_iter, "ftol": self.tolerance},
-                )
+                res = linprog(c, A_ub=A_ub, b_ub=b_ub, A_eq=A_eq, b_eq=b_eq,
+                              bounds=bounds, method=self.method)
                 if res.success:
                     x_upper[variables[i]] = float(np.clip(res.x[i], 0.0, 1.0))
                 else:
-                    x_upper[variables[i]] = float(np.clip(x0_base[i], 0.0, 1.0))
+                    x_upper[variables[i]] = 1.0
             except Exception:
-                x_upper[variables[i]] = float(np.clip(x0_base[i], 0.0, 1.0))
+                x_upper[variables[i]] = 1.0
 
         solve_time = time.perf_counter() - t0
 
         return SolverResult(
             success=True,
-            message=f"Bounds computed for {n} variables via QP",
+            message=f"Bounds for {n} vars via LP ({self.method})",
             x_lower=x_lower,
             x_upper=x_upper,
-            solver_name=f"qp_{self.method.lower()}_bound",
+            solver_name=f"lp_{self.method}_bound",
             solve_time_s=solve_time,
         )
