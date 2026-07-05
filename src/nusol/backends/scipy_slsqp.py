@@ -28,7 +28,7 @@ class ScipySLSQPBackend(PointBackend):
     """
 
     name = "scipy_slsqp"
-    capabilities = frozenset({"continuous", "linear_constraints"})
+    capabilities = frozenset({"continuous", "linear_constraints", "soft_constraints"})
 
     def __init__(self, options: dict[str, Any] | None = None) -> None:
         self.options = {

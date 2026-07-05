@@ -9,6 +9,7 @@ Commands:
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Optional
 
@@ -149,13 +150,72 @@ def solve(
     dry_run: bool = typer.Option(
         False, "--dry-run", help="Compile and show IR, do not solve",
     ),
+    output: Optional[str] = typer.Option(
+        None, "--output", "-o", help="Output path for result JSON",
+    ),
 ) -> None:
     """Solve an ingredient estimation problem.
 
-    Runs the full pipeline: load → resolve → compile → solve → output.
+    Runs the full pipeline: load → resolve → build → compile → solve → output.
     """
-    # TODO: Phase 5 — implement full solve pipeline
-    typer.echo("Solve pipeline — to be implemented in Phase 5")
+    from nusol.api import solve as solve_api
+    from nusol.compiler.compiler import compile_problem
+    from nusol.config.errors import ConfigError, NuSolError
+    from nusol.config.loader import ConfigLoader
+    from nusol.domain.builder import build_problem
+
+    try:
+        if dry_run:
+            # Load, build, compile — show structure only
+            loader = ConfigLoader()
+            doc = loader.load_from_path(path)
+            problem = build_problem(doc)
+            compiled = compile_problem(problem)
+
+            typer.secho(f"Problem: {problem.problem_id}", bold=True)
+            typer.echo(f"  Ingredients: {len(compiled.variables)}")
+            typer.echo(f"  Hard constraints: {sum(1 for lc in compiled.linear_constraints if lc.mode == 'hard')}")
+            typer.echo(f"  Soft constraints: {sum(1 for lc in compiled.linear_constraints if lc.mode == 'soft')}")
+            typer.echo(f"  Capabilities: {compiled.required_capabilities}")
+            typer.echo("")
+            typer.echo("DRY-RUN: problem compiled but not solved")
+            return
+
+        result = solve_api(path)
+
+        if result["success"]:
+            typer.secho(
+                f"Solve SUCCESS ✓  ({result['problem_id']})",
+                fg=typer.colors.GREEN, bold=True,
+            )
+            typer.echo(f"  fractions:")
+            for ing, frac in sorted(result["fractions"].items(),
+                                     key=lambda x: x[1], reverse=True):
+                lo, hi = result["bounds"].get(ing, [0, 1])
+                typer.echo(f"    {ing:20s} {frac:.4f}  [{lo:.4f}, {hi:.4f}]")
+            typer.echo(f"  solve_time: {result['diagnostics']['total_time_s']:.4f}s")
+        else:
+            typer.secho(
+                f"Solve FAILED  ({result.get('error', 'unknown error')})",
+                fg=typer.colors.RED, bold=True,
+            )
+
+        if output:
+            out_path = Path(output)
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(out_path, "w") as f:
+                json.dump(result, f, indent=2)
+            typer.echo(f"  result written to {out_path}")
+
+        if not result["success"]:
+            raise typer.Exit(code=2)
+
+    except NuSolError as e:
+        typer.secho(f"Solve failed: {e}", fg=typer.colors.RED, bold=True)
+        raise typer.Exit(code=2)
+    except ConfigError as e:
+        typer.secho(f"Config error: {e}", fg=typer.colors.RED, bold=True)
+        raise typer.Exit(code=1)
 
 
 def main() -> None:

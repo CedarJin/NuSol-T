@@ -114,12 +114,30 @@ class TestCLI:
         assert "energy_kcal" in result.stdout
         assert "scipy_slsqp" in result.stdout
 
-    def test_solve_not_implemented_message(self, runner: CliRunner, minimal_yaml: Path) -> None:
+    def test_solve_e2e(self, runner: CliRunner, minimal_yaml: Path) -> None:
         from nusol.cli import app
 
         result = runner.invoke(app, ["solve", str(minimal_yaml)])
-        # For now, just check it doesn't crash
-        assert "Phase 5" in result.stdout or result.exit_code == 0
+        assert result.exit_code == 0, result.output
+        assert "SUCCESS" in result.stdout
+        assert "fractions" in result.stdout
+        assert "solve_time" in result.stdout
+
+    def test_solve_dry_run(self, runner: CliRunner, minimal_yaml: Path) -> None:
+        from nusol.cli import app
+
+        result = runner.invoke(app, ["solve", str(minimal_yaml), "--dry-run"])
+        assert result.exit_code == 0, result.output
+        assert "DRY-RUN" in result.stdout
+
+    def test_solve_with_output(self, runner: CliRunner, minimal_yaml: Path, tmp_path) -> None:
+        from nusol.cli import app
+
+        out_path = tmp_path / "result.json"
+        result = runner.invoke(app, ["solve", str(minimal_yaml), "--output", str(out_path)])
+        assert result.exit_code == 0, result.output
+        assert out_path.exists()
+        assert "fractions" in out_path.read_text()
 
     def test_app_help(self, runner: CliRunner) -> None:
         from nusol.cli import app
