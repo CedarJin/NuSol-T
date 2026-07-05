@@ -1,0 +1,79 @@
+# NuSol-T Example: Bread (minimal)
+# A simple 3-ingredient bread problem with label observations.
+schema_version: "1.0-draft"
+problem_id: bread_minimal
+
+basis:
+  ingredient_mass: input_fraction
+  nutrient_amount: per_100g_finished_product
+
+ingredients:
+  - id: flour
+    name: Wheat flour
+    declaration_position: 0
+    declaration_group: main
+
+  - id: sugar
+    name: Sugar
+    declaration_position: 1
+    declaration_group: main
+
+  - id: oil
+    name: Vegetable oil
+    declaration_position: 2
+    declaration_group: main
+
+composition:
+  source: inline
+  nutrients:
+    - id: energy_kcal
+      unit: kcal
+    - id: protein_g
+      unit: g
+    - id: fat_g
+      unit: g
+  values:
+    flour: [364.0, 10.3, 1.0]
+    sugar: [387.0, 0.0, 0.0]
+    oil: [884.0, 0.0, 100.0]
+
+observations:
+  - nutrient: energy_kcal
+    interval: [410.0, 430.0]
+    unit: kcal
+
+  - nutrient: protein_g
+    interval: [5.0, 6.0]
+    unit: g
+
+model:
+  type: linear_mixing
+
+variables:
+  ingredient_fractions:
+    lower: 0.0
+    upper: 1.0
+
+constraints:
+  - id: total_mass
+    type: mass_balance
+    mode: hard
+
+  - id: label_fit
+    type: nutrient_interval
+    mode: soft
+    weight: 10.0
+
+solver:
+  point:
+    backend: scipy_slsqp
+    options:
+      max_iterations: 500
+      tolerance: 1.0e-8
+
+output:
+  path: output/bread_minimal.json
+  include:
+    - point_estimate
+    - feasible_bounds
+    - constraint_diagnostics
