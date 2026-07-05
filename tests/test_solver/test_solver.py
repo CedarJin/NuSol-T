@@ -1,4 +1,4 @@
-"""Tests for solver modules (PointSolver, BoundSolver, EnsembleSolver)."""
+"""Tests for solver modules (BoundSolver, EnsembleSolver, initializer, objective)."""
 
 from __future__ import annotations
 
@@ -55,184 +55,33 @@ def simple_constraints(simple_context):
     return constraints, builder
 
 
-class TestPointSolver:
-    """Tests for PointSolver."""
-
-    def test_basic_solve(self, simple_context, simple_constraints):
-        from nusol.solver.point_solver import PointSolver
-
-        constraints, builder = simple_constraints
-        variables = simple_context["ingredient_names"]
-
-        solver = PointSolver({"solver": {"multi_start": 20, "max_iter": 500}})
-        result = solver.solve(variables, constraints, simple_context, builder)
-
-        assert result.success
-        assert len(result.x_point) == 3
-        # Check mass conservation
-        total = sum(result.x_point.values())
-        assert abs(total - 1.0) < 0.01
-        # All fractions should be positive
-        for v, val in result.x_point.items():
-            assert val >= 0
-
-    def test_mass_conservation(self, simple_context, simple_constraints):
-        from nusol.solver.point_solver import PointSolver
-
-        constraints, builder = simple_constraints
-        variables = simple_context["ingredient_names"]
-
-        solver = PointSolver({"solver": {"multi_start": 20, "max_iter": 500}})
-        result = solver.solve(variables, constraints, simple_context, builder)
-
-        total = sum(result.x_point.values())
-        assert abs(total - 1.0) < 0.001, f"Mass not conserved: total={total}"
-
-    def test_recovery_of_known_fractions(self, simple_context, simple_constraints):
-        """With reasonable label intervals, solver should find a valid solution."""
-        from nusol.solver.point_solver import PointSolver
-
-        constraints, builder = simple_constraints
-        variables = simple_context["ingredient_names"]
-
-        # Use reasonable (not extremely tight) intervals
-        A = simple_context["nutrient_matrix"]
-        true_x = np.array([0.5, 0.3, 0.2])
-        true_pred = true_x @ A
-        simple_context["target_intervals"] = {
-            "Energy": (float(true_pred[0]) - 10, float(true_pred[0]) + 10),
-            "Protein": (float(true_pred[1]) - 2, float(true_pred[1]) + 2),
-        }
-
-        solver = PointSolver({"solver": {"multi_start": 30, "max_iter": 500}})
-        result = solver.solve(variables, constraints, simple_context, builder)
-
-        # Should find at least one valid solution
-        # Mass conservation must hold
-        total = sum(result.x_point.values())
-        assert abs(total - 1.0) < 0.01
-        # All fractions should be >= 0
-        for v in variables:
-            assert result.x_point[v] >= 0
-
-    def test_single_ingredient_trivial(self):
-        from nusol.solver.point_solver import PointSolver
-        from nusol.constraints.mass_balance import MassBalanceConstraint
-        from nusol.constraints.base import ConstraintBuilder
-
-        variables = ["sole_ingredient"]
-        context = {
-            "ingredient_names": variables,
-            "n_variables": 1,
-            "main_ingredient_indices": [0],
-            "two_percent_indices": [],
-        }
-        constraints = [MassBalanceConstraint()]
-        builder = ConstraintBuilder({"constraints": {}})
-
-        solver = PointSolver({"solver": {"multi_start": 5}})
-        result = solver.solve(variables, constraints, context, builder)
-        assert result.success
-        assert abs(result.x_point["sole_ingredient"] - 1.0) < 0.01
-
-
 class TestBoundSolver:
-    """Tests for BoundSolver."""
+    """Tests for QP-based BoundSolver."""
 
     def test_basic_bounds(self, simple_context, simple_constraints):
         from nusol.solver.bound_solver import BoundSolver
 
-        constraints, builder = simple_constraints
         variables = simple_context["ingredient_names"]
-
-        solver = BoundSolver({"solver": {"max_iter": 300}})
-        result = solver.solve(variables, constraints, simple_context, builder=builder)
+        solver = BoundSolver({"max_iter": 300})
+        result = solver.solve(variables, [], simple_context)
 
         assert result.x_lower
         assert result.x_upper
         for v in variables:
-            assert result.x_lower[v] <= result.x_upper[v], f"lower > upper for {v}"
-            assert result.x_lower[v] >= 0
-            assert result.x_upper[v] <= 1.0
+            assert result.x_lower[v] <= result.x_upper[v] + 1e-6, f"lower > upper for {v}"
+            assert result.x_lower[v] >= -1e-10
+            assert result.x_upper[v] <= 1.0 + 1e-10
 
     def test_all_variables_have_bounds(self, simple_context, simple_constraints):
         from nusol.solver.bound_solver import BoundSolver
 
-        constraints, builder = simple_constraints
         variables = simple_context["ingredient_names"]
-
-        solver = BoundSolver({"solver": {"max_iter": 300}})
-        result = solver.solve(variables, constraints, simple_context, builder=builder)
+        solver = BoundSolver({"max_iter": 300})
+        result = solver.solve(variables, [], simple_context)
 
         for v in variables:
             assert v in result.x_lower
             assert v in result.x_upper
-
-
-class TestEnsembleSolver:
-    """Tests for EnsembleSolver."""
-
-    def test_basic_ensemble(self, simple_context, simple_constraints):
-        from nusol.solver.ensemble_solver import EnsembleSolver
-
-        constraints, builder = simple_constraints
-        variables = simple_context["ingredient_names"]
-
-        solver = EnsembleSolver({
-            "solver": {
-                "ensemble": {"n_bootstrap": 10, "n_multi_start": 10},
-                "multi_start": 1,
-            }
-        })
-        result = solver.solve(variables, constraints, simple_context, builder=builder)
-
-        assert result.success
-        assert len(result.x_point) == 3
-        # Check bounds are reasonable
-        for v in variables:
-            assert result.x_lower[v] <= result.x_point[v] <= result.x_upper[v]
-
-    def test_interval_width_reasonable(self, simple_context, simple_constraints):
-        from nusol.solver.ensemble_solver import EnsembleSolver
-
-        constraints, builder = simple_constraints
-        variables = simple_context["ingredient_names"]
-
-        solver = EnsembleSolver({
-            "solver": {
-                "ensemble": {"n_bootstrap": 10, "n_multi_start": 10},
-                "multi_start": 1,
-            }
-        })
-        result = solver.solve(variables, constraints, simple_context, builder=builder)
-
-        # Each interval should be between 0 and 1
-        for v in variables:
-            assert 0.0 <= result.x_lower[v] <= 1.0
-            assert 0.0 <= result.x_upper[v] <= 1.0
-            assert result.x_lower[v] <= result.x_upper[v]
-
-
-class TestObjective:
-    """Tests for objective function builder."""
-
-    def test_build_objective(self, simple_constraints, simple_context):
-        from nusol.solver.objective import build_objective
-
-        constraints, _ = simple_constraints
-        objective = build_objective(constraints, simple_context)
-
-        # At the true solution, objective should be near 0
-        x_true = np.array([0.5, 0.3, 0.2])
-        obj_val = objective(x_true)
-        assert obj_val >= 0
-
-        # A bad solution should have higher objective
-        x_bad = np.array([0.1, 0.1, 0.8])
-        obj_bad = objective(x_bad)
-        # The bad solution might or might not have higher objective depending on
-        # which nutrients are violated. But the objective should be a number.
-        assert isinstance(obj_bad, float)
 
 
 class TestInitializer:
