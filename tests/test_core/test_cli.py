@@ -32,6 +32,9 @@ def minimal_yaml(tmp_path: Path) -> Path:
         "observations": [{"nutrient": "energy_kcal", "unit": "kcal", "interval": [400, 450]}],
         "model": {"type": "linear_mixing"},
         "variables": {"ingredient_fractions": {"lower": 0.0, "upper": 1.0}},
+        "constraints": [
+            {"id": "mass_balance", "type": "mass_balance", "mode": "hard"},
+        ],
         "solver": {"point": {"backend": "scipy_slsqp"}},
         "output": {"path": "output/test.json"},
     }
@@ -52,6 +55,9 @@ def invalid_yaml(tmp_path: Path) -> Path:
         "observations": [{"nutrient": "e", "unit": "kcal", "interval": [0, 10]}],
         "model": {"type": "linear_mixing"},
         "variables": {"ingredient_fractions": {"lower": 0.0, "upper": 1.0}},
+        "constraints": [
+            {"id": "mass_balance", "type": "mass_balance", "mode": "hard"},
+        ],
         "solver": {"point": {"backend": "scipy_slsqp"}},
         "output": {"path": "out.json"},
     }

@@ -18,12 +18,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from nusol.backends.highs_lp import HighsLPBackend
 from nusol.backends.registry import get_backend_registry
-from nusol.backends.scipy_slsqp import ScipySLSQPBackend
 from nusol.compiler.compiler import compile_problem
 from nusol.config.errors import ConfigError, NuSolError
-from nusol.config.loader import ConfigLoader
 from nusol.config.resolver import ConfigResolver, yaml_to_canonical_string
 from nusol.domain.builder import build_problem
 
@@ -62,41 +59,51 @@ def solve(yaml_path: str | Path) -> dict[str, Any]:
     path = Path(yaml_path)
     t_start = time.perf_counter()
 
-    # 1. Load and resolve
-    loader = ConfigLoader()
-    doc = loader.load_from_path(str(path))
+    # 1. Resolve (load + extends + defaults) into a single validated SolveDocument
     resolver = ConfigResolver()
+    doc = resolver.resolve(str(path))
+
+    # Also get canonical dict for manifest
     resolved_dict = resolver.resolve_to_dict(str(path))
 
-    # 2. Build domain model
+    # 2. Build domain model from resolved document
     problem = build_problem(doc)
 
     # 3. Compile to IR
     compiled = compile_problem(problem)
 
-    # 4. Solve point
-    point_backend = ScipySLSQPBackend()
+    # 4. Read solver config from resolved YAML
     reg = get_backend_registry()
-    reg.check_point_capabilities("scipy_slsqp", compiled.required_capabilities)
+    solver_spec = doc.solver
 
-    try:
-        fractions, point_stats = point_backend.solve_point(compiled)
-    except NuSolError as e:
-        fractions = {}
-        point_stats = None
+    # 5. Solve point (if configured)
+    fractions = {}
+    point_stats = None
+    if solver_spec.point:
+        point_name = solver_spec.point.backend.value
+        point_opts = solver_spec.point.options
+        reg.check_point_capabilities(point_name, compiled.required_capabilities)
+        p_cls = reg.get_point(point_name)
+        p_backend = p_cls(options=point_opts)
+        try:
+            fractions, point_stats = p_backend.solve_point(compiled)
+        except NuSolError:
+            point_stats = None
 
-    # 5. Solve bounds (only using hard constraints, ignoring soft)
-    bounds_backend = HighsLPBackend()
+    # 6. Solve bounds (default: use highs_lp even without explicit bounds config)
+    bounds_dict = {}
+    bounds_stats = None
+    b_name = solver_spec.bounds.backend.value if solver_spec.bounds else "highs_lp"
+    b_caps = frozenset({"continuous", "linear_constraints"})
     try:
-        # Bounds solver only needs continuous + linear_constraints (ignores soft)
-        bounds_caps = frozenset({"continuous", "linear_constraints"})
-        reg.check_bounds_capabilities("highs_lp", bounds_caps)
-        bounds_dict, bounds_stats = bounds_backend.solve_bounds(compiled)
+        reg.check_bounds_capabilities(b_name, b_caps)
+        b_cls = reg.get_bounds(b_name)
+        b_backend = b_cls()
+        bounds_dict, bounds_stats = b_backend.solve_bounds(compiled)
     except NuSolError:
         bounds_dict = {}
-        bounds_stats = None
 
-    # 6. Build result
+    # 7. Build result
     t_end = time.perf_counter()
 
     diagnostics = {

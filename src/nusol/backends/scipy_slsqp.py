@@ -135,10 +135,14 @@ class ScipySLSQPBackend(PointBackend):
         else:
             x0_ing = np.ones(n) / max(n, 1)
 
-        # ── Build full objective: min Σ(s_lo² + s_hi²) ──
+        # ── Build full objective: min Σ(weight_i * s_i²) ──
+        slack_weights = np.ones(n_slack)
+        for si, (_, lo, hi, w) in enumerate(soft_intervals):
+            slack_weights[si] = w
+
         def objective(x: np.ndarray) -> float:
             s = x[n:]
-            return float(np.dot(s, s))
+            return float(np.dot(slack_weights * s, s))
 
         # ── Build constraints ──
         scipy_cons = []

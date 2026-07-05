@@ -45,38 +45,19 @@ def compile_problem(problem: IngredientProblem) -> CompiledProblem:
 
     registry = get_constraint_registry()
 
-    # Special handling: mass_balance is always added
-    mass_cfg = constraint_configs.get("mass_balance", {})
-    if mass_cfg.get("enabled", True):
-        ones = np.ones(n_vars)
-        linear_constraints.append(
-            LinearConstraintIR(
-                id="mass_balance",
-                coefficients=ones,
-                lower=1.0,
-                upper=1.0,
-                mode="hard",
-            ),
-        )
+    # Process nutrient_interval constraints from observations.
+    # Use mode/weight from the YAML constraint if declared.
+    _DEFAULT_NU_MODE = "soft"
+    _DEFAULT_NU_WEIGHT = 10.0
+    nu_mode = _DEFAULT_NU_MODE
+    nu_weight = _DEFAULT_NU_WEIGHT
+    # Look for a nutrient_interval-type constraint in the YAML config
+    for c_id, c_info in constraint_configs.items():
+        if c_info.get("type") == "nutrient_interval":
+            nu_mode = c_info.get("mode", _DEFAULT_NU_MODE)
+            nu_weight = c_info.get("weight", _DEFAULT_NU_WEIGHT)
+            break
 
-    # Special handling: ingredient_order (needs declaration positions)
-    order_cfg = constraint_configs.get("ingredient_order", {})
-    if order_cfg.get("enabled", True):
-        for i in range(n_ingredients - 1):
-            coeff = np.zeros(n_vars)
-            coeff[i] = 1.0
-            coeff[i + 1] = -1.0
-            linear_constraints.append(
-                LinearConstraintIR(
-                    id=f"order_{i}_ge_{i+1}",
-                    coefficients=coeff,
-                    lower=0.0,
-                    mode="hard",
-                ),
-            )
-
-    # Process nutrient_interval constraints from observations
-    # lo ≤ A[j]·x ≤ hi for each observed nutrient with interval
     for nut_id, (lo, hi) in problem.observation_intervals.items():
         j = nutrient_ids.index(nut_id)
         coeff_lo = -matrix[:, j].copy()
@@ -86,22 +67,21 @@ def compile_problem(problem: IngredientProblem) -> CompiledProblem:
             LinearConstraintIR(
                 id=f"nu_lo_{nut_id}",
                 coefficients=coeff_lo,
-                upper=-lo,  # -A[j]·x ≤ -lo
-                mode="soft",
-                weight=10.0,
+                upper=-lo,
+                mode=nu_mode,
+                weight=nu_weight,
             ),
         )
         linear_constraints.append(
             LinearConstraintIR(
                 id=f"nu_hi_{nut_id}",
                 coefficients=coeff_hi,
-                upper=hi,  # A[j]·x ≤ hi
-                mode="soft",
-                weight=10.0,
+                upper=hi,
+                mode=nu_mode,
+                weight=nu_weight,
             ),
         )
 
-    # Process exact observations
     for nut_id, val in problem.observation_exact.items():
         j = nutrient_ids.index(nut_id)
         coeff = matrix[:, j].copy()
@@ -111,8 +91,8 @@ def compile_problem(problem: IngredientProblem) -> CompiledProblem:
                 coefficients=coeff,
                 lower=val,
                 upper=val,
-                mode="soft",
-                weight=10.0,
+                mode=nu_mode,
+                weight=nu_weight,
             ),
         )
 
@@ -123,9 +103,6 @@ def compile_problem(problem: IngredientProblem) -> CompiledProblem:
         if c_type is None:
             c_type = constraint_configs.get(c_id, {}).get("type")
 
-        # Skip constraints already handled as special cases above
-        if c_type in ("mass_balance", "ingredient_order"):
-            continue
         if c_type is None:
             raise UnsupportedConstraintError(
                 f"Constraint '{c_id}' has no type specified. "

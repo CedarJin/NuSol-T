@@ -192,7 +192,7 @@ def _register_builtin_constraints(registry: ConstraintRegistry) -> None:
     from nusol.constraints.builtin.linear_expression import register as reg_le
     from nusol.constraints.builtin.unique_source import register as reg_us
 
-    for register_fn in [reg_mb, reg_io, reg_tp, reg_ni, reg_dp, reg_le, reg_us]:
+    for register_fn in [reg_mb, reg_io, reg_tp, reg_ni, reg_dp, reg_le]:
         register_fn(registry)
 
     global _BUILTIN_NAMES

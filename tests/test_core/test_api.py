@@ -34,6 +34,10 @@ def bread_yaml(tmp_path: Path) -> Path:
         ],
         "model": {"type": "linear_mixing"},
         "variables": {"ingredient_fractions": {"lower": 0.0, "upper": 1.0}},
+        "constraints": [
+            {"id": "mass_balance", "type": "mass_balance", "mode": "hard"},
+            {"id": "label_fit", "type": "nutrient_interval", "mode": "soft", "weight": 10.0},
+        ],
         "solver": {"point": {"backend": "scipy_slsqp"}},
         "output": {"path": "output/test.json"},
     }

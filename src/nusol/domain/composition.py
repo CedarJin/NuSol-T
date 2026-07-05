@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
@@ -147,11 +148,22 @@ class CompositionMatrix:
         path: str | Path,
         key_column: str = "ingredient_id",
         missing_value_policy: str = "error",
+        yaml_ingredient_ids: list[str] | None = None,
+        sha256: str | None = None,
     ) -> CompositionMatrix:
         """Build from a CSV file path."""
         path = Path(path)
         if not path.exists():
             raise ResourceError(f"Composition CSV not found: {path}")
+
+        # SHA-256 checksum validation (R1.3)
+        if sha256 is not None:
+            actual_sha = hashlib.sha256(path.read_bytes()).hexdigest()
+            if actual_sha != sha256:
+                raise ResourceError(
+                    f"SHA-256 mismatch for {path}: "
+                    f"declared={sha256}, actual={actual_sha}"
+                )
 
         with open(path, newline="", encoding="utf-8") as f:
             reader = csv.DictReader(f)
@@ -197,6 +209,24 @@ class CompositionMatrix:
                 units.append(CANONICAL_NUTRIENT_MAP[nid][1])
             else:
                 units.append("")
+
+        # Reorder rows to match YAML ingredient order (R0.1)
+        if yaml_ingredient_ids is not None:
+            csv_ids = set(ingredient_ids)
+            yaml_set = set(yaml_ingredient_ids)
+            if csv_ids != yaml_set:
+                missing = yaml_set - csv_ids
+                extra = csv_ids - yaml_set
+                msg = []
+                if missing:
+                    msg.append(f"Missing ingredients in CSV: {missing}")
+                if extra:
+                    msg.append(f"Extra ingredients in CSV (not in YAML): {extra}")
+                raise ResourceError("; ".join(msg))
+
+            # Reorder: build dict then read in YAML order
+            row_by_id = dict(zip(ingredient_ids, rows))
+            rows = [row_by_id[i] for i in yaml_ingredient_ids]
 
         return cls(rows, ingredient_ids, nutrient_ids, units)
 

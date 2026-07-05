@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from nusol.config.errors import ConfigError
 from nusol.config.schema import (
     InlineCompositionSpec,
     SolveDocument,
@@ -23,7 +24,17 @@ def build_problem(doc: SolveDocument) -> IngredientProblem:
 
     Raises:
         CompileError: If domain-level validation fails.
+        ConfigError: If enabled priors are present (not yet supported).
     """
+    # Prior support check (R1.1): priors are not yet implemented
+    enabled_priors = [p.id for p in doc.priors if p.enabled]
+    if enabled_priors:
+        raise ConfigError(
+            f"Priors are not yet supported by the compiler. "
+            f"Enabled priors: {enabled_priors}. "
+            "Set enabled: false or remove them from the YAML document."
+        )
+
     # 1. Build ingredients
     ingredients = tuple(
         Ingredient(
@@ -49,11 +60,13 @@ def build_problem(doc: SolveDocument) -> IngredientProblem:
             units=units,
         )
     else:
-        # CSV source — load from file path
+        # CSV source — load from file path with YAML ingredient order (R0.1)
         composition = CompositionMatrix.from_csv(
             path=comp.path,
             key_column=comp.key_column,
             missing_value_policy=comp.missing_value_policy.value,
+            yaml_ingredient_ids=ingredient_ids,
+            sha256=getattr(comp, "sha256", None),
         )
 
     # 3. Build observations
