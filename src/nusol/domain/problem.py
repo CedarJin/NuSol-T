@@ -37,6 +37,14 @@ class IngredientProblem(BaseModel):
         default_factory=tuple,
         description="IDs of enabled constraints",
     )
+    constraint_types: dict[str, str] = Field(
+        default_factory=dict,
+        description="Mapping from constraint ID → type name (e.g. {'total_mass': 'mass_balance'})",
+    )
+    constraint_configs: dict[str, dict] = Field(
+        default_factory=dict,
+        description="Mapping from constraint ID → configuration dict",
+    )
     prior_ids: tuple[str, ...] = Field(
         default_factory=tuple,
         description="IDs of enabled priors",

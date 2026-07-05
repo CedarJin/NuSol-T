@@ -71,7 +71,18 @@ def build_problem(doc: SolveDocument) -> IngredientProblem:
             intervals[nut_id] = (0.0, obs.less_than)
 
     # 4. Build constraint/prior IDs
-    constraint_ids = tuple(c.id for c in doc.constraints if c.enabled)
+    enabled_constraints = [c for c in doc.constraints if c.enabled]
+    constraint_ids = tuple(c.id for c in enabled_constraints)
+    constraint_types = {c.id: c.type for c in enabled_constraints}
+    constraint_configs = {
+        c.id: {
+            "type": c.type,
+            "mode": c.mode.value,
+            "weight": c.weight,
+            "config": c.config,
+        }
+        for c in enabled_constraints
+    }
     prior_ids = tuple(p.id for p in doc.priors if p.enabled)
 
     # 5. Assemble problem
@@ -83,6 +94,8 @@ def build_problem(doc: SolveDocument) -> IngredientProblem:
         observation_intervals=intervals,
         observation_exact=exact,
         constraint_ids=constraint_ids,
+        constraint_types=constraint_types,
+        constraint_configs=constraint_configs,
         prior_ids=prior_ids,
     )
 
