@@ -132,13 +132,33 @@ def compile_problem(problem: IngredientProblem) -> CompiledProblem:
                 "Ensure it is passed via constraint_types or constraint_configs."
             )
 
-        if not registry.has(c_type):
+        # Handle plugin constraints (type: plugin → look up actual name in config)
+        plugin_name = c_type
+        plugin_version = None
+        if c_type == "plugin":
+            c_cfg = problem.constraint_configs.get(c_id, {})
+            plugin_name = c_cfg.get("config", {}).get("plugin", "")
+            plugin_version = c_cfg.get("config", {}).get("version", None)
+            if not plugin_name:
+                raise UnsupportedConstraintError(
+                    f"Constraint '{c_id}' type='plugin' but no 'plugin' name in config"
+                )
+
+        if not registry.has(plugin_name):
             raise UnsupportedConstraintError(
-                f"Constraint '{c_id}' has unknown type '{c_type}'. "
+                f"Constraint '{c_id}' has unknown type/plugin '{plugin_name}'. "
                 f"Available types: {registry.names()}"
             )
 
-        plugin = registry.get(c_type)
+        plugin = registry.get(plugin_name)
+
+        # Version check if specified in YAML
+        if plugin_version and plugin.version != plugin_version:
+            raise UnsupportedConstraintError(
+                f"Constraint '{c_id}' requires plugin '{plugin_name}' version "
+                f"'{plugin_version}' but installed version is '{plugin.version}'"
+            )
+
         cfg = problem.constraint_configs.get(c_id, {})
         validated_params = plugin.validate_params(cfg.get("config", {}))
         ir_fragments = plugin.compile(
