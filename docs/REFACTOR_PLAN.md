@@ -481,6 +481,55 @@ class NutrientValue(BaseModel):
 - matrix 对用于 observation constraint 的缺失营养素默认报错；
 - 可通过 YAML 显式选择 `drop_nutrient`，但 resolved YAML 必须记录决策。
 
+### 8.3 Prior 作为一等建模对象
+
+NuSol-T 的逆向求解通常是欠定问题。Constraint 负责定义可行域，Prior 负责在可行域中表达食品学偏好或概率分布；二者不能继续混在松散配置或 backend 特殊逻辑中。
+
+领域层至少保留以下信息：
+
+```python
+class PriorSpec(BaseModel):
+    id: str
+    type: str
+    enabled: bool
+    targets: tuple[str, ...]
+    weight: float
+    config: dict[str, Any]
+    applicability: dict[str, Any]
+    evidence: EvidenceSpec
+```
+
+每个 prior 必须通过 registry 完成参数二次校验，并沿统一链路执行：
+
+```text
+YAML PriorSpec
+    → typed domain prior
+    → prior registry/compiler
+    → linear/quadratic/probabilistic IR
+    → capability check
+    → MAP 或 probabilistic backend
+```
+
+首批实现限定为可验证的 Level 2 priors：
+
+- `fraction_interval_prior`：单原料比例目标区间；
+- `group_total_prior`：原料组总比例目标；
+- `recipe_center_prior`：相对类别中心配方的二次距离；
+- `anti_extreme_prior`：抑制无证据的边界解；
+- `ratio_prior`：两个原料或原料组之间的比例关系。
+
+工程规则：
+
+1. enabled prior 未注册、无法编译或 backend 不支持时必须失败，禁止静默忽略；
+2. prior weight 必须进入 IR 和 objective，并出现在 resolved YAML 与 manifest；
+3. prior 不得改变 hard feasible bounds，除非 YAML 明确声明 bounds 的概率或 slack 语义；
+4. 每个 prior 必须记录 evidence、版本、适用食品类别和参数来源；
+5. 输出必须包含 prior contribution、敏感性和与 observation 的冲突诊断；
+6. 训练数据学习出的 prior 参数必须与验证数据隔离，防止数据泄漏；
+7. Level 3-4 不得强行降维成未经说明的 quadratic penalty。
+
+Bayesian/分层扩展继续复用同一领域对象，但编译到 probabilistic IR，由独立 backend 处理 likelihood、population parameters、posterior sampling 和收敛诊断。基础 SLSQP/HiGHS backend 不承担这些职责。
+
 ## 9. 结果模型
 
 ```python
@@ -707,7 +756,12 @@ uv run nusol solve examples/basic.yaml
 - [ ] compound ingredient hierarchy；
 - [ ] alternative ingredient groups；
 - [ ] observation model plugin；
-- [ ] calibrated priors。
+- [ ] typed Prior domain model 和 prior registry；
+- [ ] Level 2 linear/quadratic prior compiler；
+- [ ] prior contribution、sensitivity 和 conflict diagnostics；
+- [ ] 无先验、单先验、组合先验消融；
+- [ ] Level 3 经验分布参数学习与训练/验证隔离；
+- [ ] Level 4 probabilistic IR 和独立 Bayesian backend。
 
 每个扩展必须：
 

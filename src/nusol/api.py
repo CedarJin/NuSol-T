@@ -89,10 +89,10 @@ def solve(yaml_path: str | Path) -> dict[str, Any]:
         except NuSolError as exc:
             point_stats = SolveStats(False, "error", str(exc))
 
-    # 6. Solve bounds only when configured.
+    # 6. Solve bounds only when configured in YAML.
     bounds_dict: dict[str, tuple[float, float]] = {}
     bounds_stats = None
-    if solver_spec.bounds:
+    if solver_spec.bounds is not None:
         b_name = solver_spec.bounds.backend.value
         bounds_problem = _problem_for_bounds(
             compiled,
