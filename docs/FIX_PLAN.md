@@ -8,6 +8,143 @@
 
 ---
 
+## 重构分支最新实现问题（2026-07-05 Review）
+
+> 审查范围：`5579811..f21b68c`，即 YAML solver framework 的 Phase 0-9 实现。
+>
+> 验证结果：`pytest` 246 项通过；Ruff 仍有 262 个问题；mypy 未通过。测试通过不代表 YAML 声明已正确进入求解语义。
+
+### 优先级总览
+
+```text
+R0（阻塞性——可能静默产生错误结果）:
+  R0.1  CSV composition 按 YAML ingredient 顺序对齐
+  R0.2  solve() 必须使用 resolved document
+  R0.3  约束只能由 YAML 显式启用
+  R0.4  constraint mode/weight 必须进入 IR 和 objective
+  R0.5  solver、variable bounds 和 bounds region 必须按 YAML 执行
+
+R1（高优先级——配置被接受但未执行）:
+  R1.1  priors 不得静默丢弃
+  R1.2  unique_source 未实现时必须显式失败
+  R1.3  校验 CSV checksum，并记录资源 manifest
+```
+
+### R0.1 — CSV composition 与变量顺序可能错配
+
+**文件**：
+- `src/nusol/domain/composition.py:165-201`
+- `src/nusol/domain/validation.py:22-32`
+- `src/nusol/compiler/compiler.py:33-35`
+
+**问题**：CSV loader 按 CSV 行顺序生成矩阵，compiler 却按 YAML ingredient 顺序解释矩阵行。当前验证只检查 YAML 原料是否存在于 CSV，不检查顺序，也不重新排序。两边集合相同但顺序不同时，A 原料的营养组成会静默应用到 B 变量。
+
+**修复**：CSV loader 接收 YAML `ingredient_ids` 和声明的 nutrient schema，按 YAML 顺序选择并排列行列；拒绝缺失、重复和未授权的额外原料/营养素。
+
+**测试**：构造 YAML 顺序 `[a, b]`、CSV 顺序 `[b, a]`，验证编译后的每一行仍对应正确原料。
+
+---
+
+### R0.2 — `solve()` 没有使用 resolved YAML
+
+**文件**：`src/nusol/api.py:65-75`
+
+**问题**：API 使用 `ConfigLoader.load_from_path()` 返回的原始文档构建 domain model；`ConfigResolver` 的结果仅用于 manifest checksum。`extends`、父配置、merge 和 resolver defaults 因而不会进入实际求解。
+
+**修复**：只调用 `ConfigResolver.resolve()` 获取唯一的 `SolveDocument`，domain builder、compiler、solver 和 manifest 全部基于同一个 resolved document。避免分别加载两次配置。
+
+**测试**：父 YAML 提供 composition/constraints，子 YAML 通过 `extends` 覆盖 observation；验证 `solve(child)` 使用合并后的配置并与显式 resolved YAML 结果一致。
+
+---
+
+### R0.3 — 未声明的 mass balance 和 ingredient order 被自动启用
+
+**文件**：
+- `src/nusol/domain/builder.py:73-85`
+- `src/nusol/compiler/compiler.py:48-76`
+
+**问题**：`constraint_configs` 以约束实例 ID 为键，例如 `total_mass`；compiler 却读取固定键 `mass_balance` 和 `ingredient_order`，查找失败后以 `enabled=True` 为默认值。因此即使 YAML 没有声明这些约束，它们也会被加入 IR。
+
+**修复**：compiler 仅遍历 enabled constraint instances，根据其 `type` 调用 registry。删除 special-case 默认启用逻辑；若质量守恒是模型不变量，应在 schema/model 中明确声明为不可关闭的模型语义，而不是伪装成可选 constraint。
+
+**测试**：空 constraints、仅 mass balance、仅 ingredient order、使用自定义 constraint ID 四种情况分别断言 IR 内容。
+
+---
+
+### R0.4 — constraint `mode` 和 `weight` 没有进入真实求解目标
+
+**文件**：
+- `src/nusol/compiler/compiler.py:78-117`
+- `src/nusol/backends/scipy_slsqp.py:54-74,138-142`
+
+**问题**：observation 被固定编译为 `mode="soft"`、`weight=10.0`，忽略 YAML constraint 的 mode/weight。SLSQP 虽读取了 IR weight，但 objective 只计算 `sum(slack²)`，没有乘权重。因此修改 YAML weight 不会改变最优解，hard nutrient interval 也无法表达。
+
+**修复**：明确 observation 与 `nutrient_interval` constraint instance 的关联；将 mode、loss 和 weight 编译进 IR。SLSQP objective 使用 `sum(weight_i * slack_i²)`，并为 hard interval 生成无 slack 的硬约束。
+
+**测试**：
+- 同一冲突问题使用不同 weight，最优点应向高权重 observation 移动；
+- hard interval 不可满足时必须返回 infeasible；
+- weight=1 与 weight=100 的 objective 数值和解均符合预期。
+
+---
+
+### R0.5 — solver、变量边界和 bounds region 配置被忽略
+
+**文件**：
+- `src/nusol/api.py:77-97`
+- `src/nusol/compiler/compiler.py:38-42`
+- `src/nusol/config/schema.py:202-238`
+
+**问题**：API 无条件实例化并运行 SLSQP 和 HiGHS，不读取 YAML backend/options；point-only 配置仍执行 bounds，bounds-only 配置仍执行 point。变量上下界固定为 `[0,1]`。`explicit_slack_budget` 及其 budgets 也没有进入 bounds IR。
+
+**修复**：由 resolved solver spec 选择 backend、传递 options 并决定执行哪些任务；VariableIR 使用 YAML bounds；为 `explicit_slack_budget` 定义明确 IR，无法支持时在 compile-time 报 capability error。
+
+**测试**：覆盖 point-only、bounds-only、自定义 bounds、自定义 SLSQP options、显式 slack budget，以及不兼容 backend 的失败路径。
+
+---
+
+### R1.1 — priors 被 schema 接受但静默丢弃
+
+**文件**：
+- `src/nusol/domain/builder.py:86-99`
+- `src/nusol/domain/problem.py:48-51`
+- `src/nusol/compiler/compiler.py`
+
+**问题**：builder 只保留 prior ID，丢失 type、weight、config 和 evidence；compiler 完全不处理 prior。合法 YAML prior 对结果没有任何作用，也没有 warning/error。
+
+**修复**：在 prior registry 和 IR 实现前，包含 enabled prior 的文档必须显式报 `UnsupportedPriorError`；实现后保留完整 typed prior 并通过 registry 编译。禁止静默忽略。
+
+**测试**：未支持 prior 必须失败；已注册 prior 必须改变 IR，并在 manifest 中记录名称、版本和 evidence。
+
+---
+
+### R1.2 — `unique_source` 注册为可用但 compile 永远返回空
+
+**文件**：`src/nusol/constraints/builtin/unique_source.py:14-27`
+
+**问题**：registry 对外宣称支持 `unique_source`，但其 compile function 无条件返回空列表。YAML 启用该约束后既不报错，也不生成任何 IR。
+
+**修复**：完成 composition-aware compiler context 之前，从 builtin registry 移除该类型或抛出 `UnsupportedConstraintError`。实现后至少验证 dominance threshold、营养素存在性和下界推导。
+
+**测试**：当前阶段启用必须显式失败；完成后断言唯一营养来源产生正确的 ingredient lower bound。
+
+---
+
+### R1.3 — CSV `sha256` 未校验且资源未进入 manifest
+
+**文件**：
+- `src/nusol/config/schema.py:86-93`
+- `src/nusol/domain/builder.py:51-57`
+- `src/nusol/api.py:132-171`
+
+**问题**：schema 要求 CSV checksum，但 builder 加载文件时完全未校验；manifest 只记录 resolved config checksum，没有记录数据文件路径和实际 checksum。数据文件被替换后，相同 YAML 可以得到不同结果而不被检测。
+
+**修复**：相对资源路径以 YAML 文件目录为基准解析；加载前计算实际 SHA-256 并与声明值比较；manifest 保存 resolved path、declared checksum、actual checksum 和验证状态。
+
+**测试**：正确 checksum 通过，错误 checksum 在 build 前失败；相对路径不依赖当前工作目录；manifest 可追溯实际资源。
+
+---
+
 ## 修复优先级总览
 
 ```
