@@ -1,133 +1,150 @@
-# NuSol-T 当前实现状态
+# NuSol-T 项目进度
 
-> 最后更新：2026-07-05 | 自动生成 + 手工标注  
-> 配套文档：`REFACTOR_PLAN.md`（架构愿景）、`DEVELOPMENT_PLAN.md`（执行计划）
+> 2026-07-15 | 分支: `refactor/yaml-solver-framework` | 252 tests passing | GitHub: [CedarJin/NuSol-T](https://github.com/CedarJin/NuSol-T)
 
-## 模块状态
+---
 
-### YAML 层 (config/)
+## 一、核心成果
 
-| 模块 | 状态 | 测试 | 备注 |
-|------|------|------|------|
-| `schema.py` | ✅ 完成 | ✅ | SolveDocument Pydantic v2, extra="forbid" |
-| `loader.py` | ✅ 完成 | ✅ | YAML parse + schema validation |
-| `resolver.py` | ✅ 完成 | ✅ | extends merge + cycle detection + canonical output |
-| `errors.py` | ✅ 完成 | ✅ | 3-layer error hierarchy |
+NuSol-T 已完成从 legacy 代码到 YAML 驱动、科学可验证的重构。通过 FNDDS 200-recipe benchmark 验证了方法有效性：
 
-### 领域模型 (domain/)
+**仅凭 Nutrition Facts 标签 + 配料名称，反推配料比例，197 个 USDA 配方中 189 个成功（95.9%），中位误差 2.53 个百分点。**
 
-| 模块 | 状态 | 测试 | 备注 |
-|------|------|------|------|
-| `nutrient.py` | ✅ 完成 | ✅ | NutrientValue 四态 missingness |
-| `ingredient.py` | ✅ 完成 | ✅ | 稳定 ID |
-| `composition.py` | ✅ 完成 | ✅ | CompositionMatrix + inline/csv loaders |
-| `problem.py` | ✅ 完成 | ✅ | IngredientProblem |
-| `builder.py` | ✅ 完成 | ✅ | SolveDocument → IngredientProblem |
-| `validation.py` | ✅ 完成 | ✅ | shape/unit/interval/missing 校验 |
+---
 
-### 约束系统 (constraints/)
+## 二、FNDDS Benchmark 结果
 
-| 模块 | 状态 | 测试 | 备注 |
-|------|------|------|------|
-| `registry.py` | ✅ 完成 | ✅ | 全局注册 + 插件发现 + capability 声明 |
-| `builtin/mass_balance` | ✅ 完成 | ✅ | Σx=1 |
-| `builtin/ingredient_order` | ✅ 完成 | ✅ | x_i ≥ x_{i+1} |
-| `builtin/two_percent` | ✅ 完成 | ✅ | x_i ≤ 0.02 |
-| `builtin/nutrient_interval` | ✅ 完成 | ✅ | lo ≤ Ax ≤ hi (soft) |
-| `builtin/declared_percentage` | ✅ 完成 | ✅ | x_i = target |
-| `builtin/linear_expression` | ✅ 完成 | ✅ | 通用线性约束 |
-| `builtin/unique_source` | ⚠️ 骨架 | ⚠️ | 占位，需 compiler 扩展 |
+```
+197 个多配料配方 (剔除 3 个 NFS 配方)
 
-### IR 编译器 (compiler/)
+  Export 成功:  194 (98.5%)
+  Solve 成功:   189 (95.9%)
+  Export 失败:    3 (1.5%) ← fortified cereals (大量 fortificant 配料)
+  Solve 失败:     5 (2.5%) ← 配料营养高度同质的简单配方
 
-| 模块 | 状态 | 测试 | 备注 |
-|------|------|------|------|
-| `ir.py` | ✅ 完成 | ✅ | VariableIR, LinearConstraintIR, CompiledProblem |
-| `compiler.py` | ✅ 完成 | ✅ | IngredientProblem → CompiledProblem |
+MAE 分布 (189 个成功配方):
+  Mean:   3.04 pp
+  Median: 2.53 pp
+  Best:   0.00 pp (14 个完全命中)
+  Worst: 14.96 pp
+```
 
-### 求解后端 (backends/)
+**注**：MAE = Mean Absolute Error in percentage points（百分点）。例如真实比例 50%，求解给出 47%，则误差 = 3pp。
 
-| 模块 | 状态 | 测试 | 备注 |
-|------|------|------|------|
-| `base.py` | ✅ 完成 | ✅ | Backend protocol |
-| `registry.py` | ✅ 完成 | ✅ | Backend 注册 + capability matching |
-| `scipy_slsqp.py` | ✅ 完成 | ✅ | Slack-based QP, infeasible → SolveError |
-| `highs_lp.py` | ✅ 完成 | ✅ | LP bounds, infeasible → SolveError (F0.2 fixed) |
+---
 
-### 数据适配器 (adapters/)
+## 三、已完成模块
 
-| 模块 | 状态 | 测试 | 备注 |
-|------|------|------|------|
-| `mapping.py` | ✅ 完成 | ✅ | 4 级映射 fallback, 稳定 ID, fortificant 检测 |
-| FNDDS adapter | ⏳ 待迁移 | — | 使用旧接口，迁移到新 builder |
-| SR Legacy adapter | ⏳ 待迁移 | — | 同上 |
-| Foundation adapter | ⏳ 待迁移 | — | 同上 |
-| Branded adapter | ⏳ 待迁移 | — | 同上 |
+### Phase 0-4: 核心重构 ✅
 
-### API 层
+| 模块 | 文件 | 功能 |
+|------|------|------|
+| **Config** | `config/schema.py`, `resolver.py`, `loader.py`, `errors.py` | Pydantic v2 Schema、extends 继承链、YAML 验证 |
+| **Domain** | `domain/problem.py`, `composition.py`, `nutrient.py`, `builder.py`, `validation.py` | IngredientProblem、四态 missingness、CompositionMatrix |
+| **Compiler** | `compiler/compiler.py`, `ir.py` | YAML 约束 → Solver-Neutral IR |
+| **Constraints** | `constraints/registry.py`, `builtin/*.py` | 7 个 builtin：mass_balance、ingredient_order、two_percent、nutrient_interval、declared_percentage、linear_expression、plugin |
+| **Backends** | `backends/scipy_slsqp.py`, `highs_lp.py`, `registry.py` | Slack-based QP (point) + HiGHS LP (bounds) |
+| **API** | `api.py` | `solve(yaml_path)` 单入口 |
+| **CLI** | `cli.py` | `validate`、`resolve`、`inspect`、`solve` |
 
-| 模块 | 状态 | 测试 | 备注 |
-|------|------|------|------|
-| `api.py` | ✅ 完成 | ✅ | solve(yaml_path) 唯一公开入口 |
-| `cli.py` | ✅ 完成 | ✅ | validate/resolve/inspect/solve 四个命令 |
+### Data Adapters ✅
 
-### 验证 (validation/)
+| 文件 | 功能 |
+|------|------|
+| `data/fndds.py` | FNDDS 数据加载、recipe 提取、四级 ingredient mapper (L1 FNDDS→L2 Foundation→L3 SR Legacy ndb→L4 fuzzy) |
+| `data/sr_legacy.py` | SR Legacy 配料营养成分查找 (7793 种)、三种名称搜索 (exact/substring/word-overlap) |
+| `data/foundation.py` | Foundation Foods 适配器 (2026 最新 USDA 数据) |
+| `data/branded.py` | Branded Food 适配器（Phase 5 前置，已 stub） |
 
-| 模块 | 状态 | 测试 | 备注 |
-|------|------|------|------|
-| `metrics.py` | ✅ 修正 | ✅ | MAE 用并集, feasible-bound coverage, zero_slack ∈ [0,1] |
-| `ablation.py` | ✅ 修正 | ✅ | G0⊂G1⊂...⊂G7 |
+### 脚本与示例 ✅
 
-### 报告 (report/)
+| 文件 | 功能 |
+|------|------|
+| `scripts/export_fndds_recipes.py` | FNDDS recipe → branded-food-conditions YAML（四级 mapper、kJ→kcal 修正、fortificant 过滤） |
+| `scripts/run_fndds_benchmark.py` | 批量导出 + 求解 + MAE 统计 |
+| `examples/bread_minimal.yaml` | 简单面包配方示例 |
+| `examples/oat_milk.yaml` | Oat milk 手写 YAML（演示完整流程） |
 
-| 模块 | 状态 | 测试 | 备注 |
-|------|------|------|------|
-| `trust.py` | ⏳ 待重构 | — | 与新 backend 接口整合 |
-| `trust_grade.py` | ⏳ 待重构 | — | Trust Grade 首版不做 |
+### 文档 ✅
 
-### 核心 (core/)
+| 文件 | 内容 |
+|------|------|
+| `docs/TECHNICAL_PRINCIPLES.md` | 营养学原理、数学推导、求解器设计、Mapper 设计、Slack/Budget 机制 |
+| `docs/NuSol-T.md` | 总体规划书 |
+| `docs/DEVELOPMENT.md` | 分 Phase 任务清单与接口设计 |
+| `docs/DATA.md` | 数据字典 & 配料映射策略 |
+| `docs/REFACTOR_PLAN.md` | 重构架构设计 |
+| `docs/FIX_PLAN.md` | 35 项 bug 列表 + 修复记录 |
 
-| 模块 | 状态 | 测试 | 备注 |
-|------|------|------|------|
-| `nutrient_registry.py` | ✅ 修正 | ✅ | 脂肪酸 ID 修正 (F1.1) |
-| `units.py` | ✅ 修正 | ✅ | IU 转换修正 (F1.5) |
-| `schema.py` | ⏳ 待清理 | — | 保留为 legacy |
+---
 
-### 营养 (nutrition/)
+## 四、关键设计决策
 
-| 模块 | 状态 | 测试 | 备注 |
-|------|------|------|------|
-| `forward.py` | ⏳ 待重构 | — | 水分单位 bug (F1.4) |
-| `labelize.py` | ⏳ 待重构 | — | FDA rounding 表 |
+1. **YAML 驱动**：所有实验通过 YAML 配置，保证可复现。单入口 `solve(yaml_path)`
+2. **Solver-Neutral IR**：约束编译为 solver-agnostic 中间表示 (`CompiledProblem`)，后端可替换
+3. **Slack-based QP**：软约束通过 slack 变量 + 二次惩罚实现，而非硬区间；`objective = Σ w·s²`
+4. **四级 Ingredient Mapper**：`FNDDS code → Foundation Foods → SR Legacy ndb → 名称搜索`，code-based 优先于 text-based
+5. **Fortificant 显式处理**：纯营养素添加剂（code 999xxx）识别并排除，受影响营养素通过 `max_ing_val < 50% label` 自动跳过
+6. **kJ→kcal 自动修正**：Atwater 4-4-9 公式 (`4×protein + 4×carbs + 9×fat`) 检测能量单位错误（`ratio > 3.0` → 除以 4.184）
+7. **Branded-food 条件模拟**：FNDDS 仅用配料名称 + Nutrition Facts 标签作为输入，不泄露 FNDDS code 和真实比例
 
-### 旧系统 (legacy/)
+---
 
-| 模块 | 状态 | 测试 | 备注 |
-|------|------|------|------|
-| QPSolver | ⏳ 待移除 | ⚠️ | 被 ScipySLSQPBackend 替代 |
-| BoundSolver | ⏳ 待移除 | ⚠️ | 被 HighsLPBackend 替代 |
-| PointSolver | ✅ 已废弃 | ⚠️ | 已在 legacy baseline 中标记 |
-| EnsembleSolver | ⏳ 待保留 | — | Phase 9 迁移 |
+## 五、测试
 
-## Pipeline 完整性
+```
+252 tests passed (pytest)
+```
 
-| Pipeline | 状态 | 命令 |
-|----------|------|------|
-| YAML validate | ✅ | `nusol validate problem.yaml` |
-| YAML resolve | ✅ | `nusol resolve problem.yaml` |
-| Solve (point) | ✅ | `nusol solve problem.yaml` |
-| Solve (bounds) | ✅ | 自动随 solve 运行 |
-| 200-recipe benchmark | ❌ 待实现 | `scripts/benchmark_fndds_200.py` |
-| FNDDS spike | ✅ | `scripts/spike_fndds_ir.py` |
-| Branded Food | ❌ 待实现 | Phase 6-7 |
+覆盖：Config schema 验证、Domain model（NutrientValue 四态、CompositionMatrix 缺失处理）、Compiler（约束编译、IR 生成）、Backend（SLSQP point solve + 10x retry、HiGHS bounds solve + infeasibility check）、API（端到端、点估计/界限/独立/组合配置）、CSV 校验（SHA-256、ingredient 顺序对齐）
 
-## 测试状态
+---
 
-| 指标 | 值 |
-|------|-----|
-| 测试总数 | 246 |
-| 通过率 | 100% |
-| Legacy 快照 | 3 synthetic fixtures, 13 tests |
-| API/CLI tests | 9 CLI + 5 API |
-| Config/Schema/Resolver | 11 config + 11 resolver |
-| 无 USDA 数据依赖 | ✅ 所有测试可离线运行 |
+## 六、待完成
+
+### 近期
+
+| # | 任务 | 优先级 |
+|---|------|--------|
+| 1 | Fortificant 营养素对照表（解决 3 个 fortified cereal export 失败） | 中 |
+| 2 | SLSQP 收敛改进或备选 point solver（IPOPT） | 低 |
+| 3 | `ingredient_order` 支持 `two_percent_or_less`（仅对 main group 施加 a≥b≥c） | 中 |
+| 4 | Foundation Foods 数据集成（替换 SR Legacy 中质量较低的条目） | 中 |
+
+### Phase 5-6: Branded Food 应用
+
+| # | 任务 | 说明 |
+|---|------|------|
+| 5 | **IngredientParser** | 标签配料文本 `"WATER, SUGAR, OATS, CONTAINS 2% OR LESS OF: SALT"` → 结构化 IngredientTree |
+| 6 | **IngredientMapper** | 标签短名 `"OATS"` → USDA 标准名 `"Cereals, oats, regular and quick, not fortified, dry"` → SR Legacy 营养成分 |
+| 7 | Branded Food adapter | 连接 USDA Branded Food 数据库 |
+| 8 | Branded Food end-to-end | 标签文本 → parse → map → solve → TrustReport |
+
+### 远期
+
+| # | 任务 |
+|---|------|
+| 9 | 200-recipe FNDDS ablation study (G0-G7 消融实验) |
+| 10 | TrustReport + TrustGrade (A/B/C/D) |
+| 11 | 论文 |
+
+---
+
+## 七、推荐的 Next Step
+
+**Phase 5: IngredientMapper + IngredientParser**
+
+Branded food 应用最关键的一步。当前 FNDDS 验证中配料名已是 USDA 标准名（100% 匹配），但真实品牌食品标签是短名（`"OATS"`、`"ENRICHED FLOUR"`）。需要：
+
+1. **IngredientParser**：解析标签配料文本 → IngredientTree（处理括号嵌套、逗号分隔、"CONTAINS 2% OR LESS OF" 标记）
+2. **IngredientMapper**：标签短名 → USDA 标准名映射。这是 Phase 5 的核心挑战——名称匹配质量直接决定后续求解精度
+
+两个模块完成后，品牌食品的端到端流程就通了。FNDDS 验证已经证明只要配料映射正确，求解器能以 2.5pp 中位误差反推比例。
+
+---
+
+## 八、仓库
+
+- GitHub: https://github.com/CedarJin/NuSol-T
+- 分支: `main` (原始 legacy)、`refactor/yaml-solver-framework` (当前开发分支)
+- 数据: `../db/` (FNDDS、SR Legacy、Foundation Foods、Branded Food JSON)

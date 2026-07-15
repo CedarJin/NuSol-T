@@ -109,7 +109,9 @@ def export_recipe(fdc_id: int, fndds, sr, output_dir: Path) -> dict | None:
 
     kept = []
     for ing in all_ings:
-        name, wt = ing["description"], ing.get("weight_g", 0)
+        name = ing["description"]
+        wt = ing.get("weight_g", 0)
+        code = ing.get("ingredient_code", 0)
         if wt <= 0:
             warnings.append(f"Skip zero-weight: '{name}'")
             continue
@@ -117,7 +119,12 @@ def export_recipe(fdc_id: int, fndds, sr, output_dir: Path) -> dict | None:
             warnings.append(f"Skip fortificant (no nutrient data): '{name}'")
             continue
         frac = wt / total_wt if total_wt > 0 else 0.0
-        kept.append({"name": name, "true_frac": frac, "is_2pct": frac <= 0.02})
+        kept.append({
+            "name": name,
+            "code": code,
+            "true_frac": frac,
+            "is_2pct": frac <= 0.02,
+        })
 
     if len(kept) < 2:
         return None
@@ -129,22 +136,44 @@ def export_recipe(fdc_id: int, fndds, sr, output_dir: Path) -> dict | None:
     for i, ing in enumerate(ordered):
         ing["id"] = f"ing_{i}"
 
-    # ── Step 2: SR Legacy lookup by NAME ────────────────────────────────
-    # Each ingredient → {fndds_nutrient_name: amount}
+    # ── Step 2: Map ingredient → nutrient profile via 4-level fallback ──
+    # L1: FNDDS foodCode (self-lookup) → L2: Foundation Foods → L3: SR Legacy ndb → L4: fuzzy
+    # This uses the ingredient_code from FNDDS for precise code-based mapping,
+    # which is much more reliable than pure name search for "as ingredient" entries.
 
     ing_data: dict[str, dict[str, float | None]] = {}
-    ing_macros: dict[str, dict[str, float]] = {}  # protein/carbs/fat
+    ing_macros: dict[str, dict[str, float]] = {}  # protein/carbs/fat for kJ detection
     match_info: dict[str, dict] = {}
 
     for ing in ordered:
-        results = sr.search(ing["name"])
-        if not results:
-            warnings.append(f"No SR Legacy match for '{ing['name']}'")
-            return None
+        code = ing.get("code", 0)
+        name = ing["name"]
 
-        profile, score = results[0]
+        # Use FNDDS mapper: code-based L1→L2→L3, then name-based L4
+        # Returns (profile, method, confidence) tuple
+        profile, method, confidence = fndds.map_ingredient_to_profile(
+            code, name, sr_legacy_db=sr
+        )
+
+        if profile is not None and len(profile.nutrients) > 0:
+            score = confidence * 100
+        else:
+            # Last resort: try SR Legacy search directly
+            sr_results = sr.search(name)
+            if not sr_results:
+                warnings.append(
+                    f"No match for '{name}' (code={code}): "
+                    f"mapper returned method='{method}'"
+                )
+                return None
+            profile, score = sr_results[0]
+            method = "sr_legacy_search"
+
         match_info[ing["id"]] = {
-            "query": ing["name"], "matched": profile.description, "score": score
+            "query": name,
+            "matched": profile.description,
+            "score": score,
+            "method": method,
         }
 
         # Index by resolved FNDDS name
