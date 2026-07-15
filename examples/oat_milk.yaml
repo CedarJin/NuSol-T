@@ -1,0 +1,154 @@
+# Oat Milk (FDC 2705412) — FNDDS recipe solved with NuSol-T
+#
+# Ground truth (from FNDDS, per 100g finished product):
+#   Water:      91.00g (90.9%)   ← 主料
+#   Oats (dry):  5.00g ( 5.0%)   ← 碳水/蛋白/纤维来源
+#   Canola oil:  2.00g ( 2.0%)   ← 脂肪来源
+#   Sugar:       2.00g ( 2.0%)   ← 甜味剂
+#   Salt:        0.10g (<0.1%)   ← 调味，<2%
+#
+# 注意：3 种 fortificant (Vitamin D 0.02g, Calcium 0.01g, Vitamin B-12 0.01g)
+# 因无营养数据且质量 <0.1%，暂不纳入求解。Calcium 和 Vitamin D 的观测值
+# 也相应排除（主要由 fortificant 贡献，天然配料无法解释）。
+#
+# 能量值已修正：SR Legacy 中 canola oil 和 sugar 的 Energy 字段实为 kJ
+# (3700/1620)，已转换为 kcal (884/387)。
+
+schema_version: "1.0-draft"
+problem_id: "oat_milk_fdc2705412"
+
+basis:
+  ingredient_mass: "input_fraction"
+  nutrient_amount: "per_100g_finished_product"
+
+ingredients:
+  - id: "water"
+    name: "Water"
+    declaration_position: 0
+    declaration_group: "main"
+
+  - id: "oats"
+    name: "Oats, dry (not fortified)"
+    declaration_position: 1
+    declaration_group: "main"
+
+  - id: "canola_oil"
+    name: "Canola oil"
+    declaration_position: 2
+    declaration_group: "main"
+
+  - id: "sugar"
+    name: "Sugar, granulated"
+    declaration_position: 3
+    declaration_group: "main"
+
+  - id: "salt"
+    name: "Salt, table"
+    declaration_position: 4
+    declaration_group: "two_percent_or_less"
+
+composition:
+  source: "inline"
+  nutrients:
+    - { id: "energy_kcal",       unit: "kcal" }
+    - { id: "protein_g",         unit: "g" }
+    - { id: "fat_g",             unit: "g" }
+    - { id: "carbohydrate_g",    unit: "g" }
+    - { id: "fiber_g",           unit: "g" }
+    - { id: "sugars_g",          unit: "g" }
+    - { id: "saturated_fat_g",   unit: "g" }
+    - { id: "sodium_mg",         unit: "mg" }
+    - { id: "potassium_mg",      unit: "mg" }
+    - { id: "iron_mg",           unit: "mg" }
+
+  values:
+    # Water: 水，几乎不含营养素
+    water:   [0.0,   0.0,   0.0,  0.0,  0.0,  0.0,  0.0,    4.0,   0.0,   0.0]
+    # Oats: 碳水+蛋白+纤维 (Energy: 379 kcal 正确)
+    oats:    [379.0, 13.2,  6.52, 67.7, 10.1, 0.99, 1.11,   6.0,  362.0,  4.25]
+    # Canola oil: 纯脂肪 (Energy: 884 kcal，从 kJ 修正)
+    canola_oil: [884.0, 0.0, 100.0, 0.0,  0.0,  0.0,  7.36,   0.0,   0.0,   0.0]
+    # Sugar: 纯碳水+糖 (Energy: 387 kcal，从 kJ 修正)
+    sugar:   [387.0, 0.0,   0.0,100.0, 0.0, 99.8,  0.0,    1.0,   2.0,  0.05]
+    # Salt: 纯氯化钠
+    salt:    [0.0,   0.0,   0.0,  0.0,  0.0,  0.0,  0.0,38800.0,   8.0,  0.33]
+
+observations:
+  # 能量：45 kcal（标签 ±5% 区间）
+  - nutrient: "energy_kcal"
+    unit: "kcal"
+    interval: [42.75, 47.25]
+
+  # 蛋白：0.66g（含量低，相对区间宽一些）
+  - nutrient: "protein_g"
+    unit: "g"
+    interval: [0.50, 0.80]
+
+  # 脂肪：2.33g
+  - nutrient: "fat_g"
+    unit: "g"
+    interval: [2.10, 2.56]
+
+  # 碳水：5.37g
+  - nutrient: "carbohydrate_g"
+    unit: "g"
+    interval: [4.83, 5.91]
+
+  # 膳食纤维：0.50g
+  - nutrient: "fiber_g"
+    unit: "g"
+    interval: [0.40, 0.60]
+
+  # 总糖：2.04g
+  - nutrient: "sugars_g"
+    unit: "g"
+    interval: [1.84, 2.24]
+
+  # 饱和脂肪：0.19g
+  - nutrient: "saturated_fat_g"
+    unit: "g"
+    interval: [0.15, 0.23]
+
+  # 钠：43mg
+  - nutrient: "sodium_mg"
+    unit: "mg"
+    interval: [35.0, 52.0]
+
+  # 钾：18mg
+  - nutrient: "potassium_mg"
+    unit: "mg"
+    interval: [14.0, 22.0]
+
+  # 铁：0.21mg
+  - nutrient: "iron_mg"
+    unit: "mg"
+    interval: [0.15, 0.27]
+
+model:
+  type: "linear_mixing"
+
+variables:
+  ingredient_fractions:
+    lower: 0.0
+    upper: 1.0
+
+constraints:
+  # P0 (Hard): 质量守恒 — Σxᵢ = 1
+  - id: "mass_balance"
+    type: "mass_balance"
+    mode: "hard"
+
+  # P2 (Soft): 营养素匹配 — 10 个观察值全部用 soft interval
+  - id: "label_fit"
+    type: "nutrient_interval"
+    mode: "soft"
+    weight: 10.0
+
+solver:
+  point:
+    backend: "scipy_slsqp"
+  bounds:
+    backend: "highs_lp"
+
+output:
+  path: "output/oat_milk_result.json"
