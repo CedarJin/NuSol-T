@@ -4,6 +4,8 @@
 > 审查范围：`docs/`、`config/`、`src/nusol/`、`tests/`、CLI 与构建配置  
 > 关联文档：`docs/REVIEW.md`、`docs/SCIENCE_REVIEW.md`  
 > 目标：核验文档设计、进度声明、配置体系和实际代码是否一致，并指出设计文档中本身不正确或已被前两轮 review 否定的内容。
+>
+> **状态说明（2026-07-15）**：本文是 2026-07-05 的历史一致性审查。当前状态以 `docs/CURRENT_STATUS.md` 和 `docs/PROGRESS.md` 为准；本文保留用于追踪曾经发现的问题和后续文档漂移风险。
 
 ## 1. 总体结论
 
