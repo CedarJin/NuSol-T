@@ -158,6 +158,10 @@ def compile_problem(problem: IngredientProblem) -> CompiledProblem:
 
         cfg = problem.constraint_configs.get(c_id, {})
         validated_params = plugin.validate_params(cfg.get("config", {}))
+        # Pass ingredient group metadata so constraints can be declaration-aware
+        validated_params["_ingredient_groups"] = [
+            ing.declaration_group for ing in problem.ingredients
+        ]
         ir_fragments = plugin.compile(
             validated_params, ingredient_ids, nutrient_ids, n_vars,
         )

@@ -1,4 +1,8 @@
-"""Trust grade computation — assign A/B/C/D grade based on solution quality."""
+"""Trust grade computation — assign A/B/C/D grade based on solution quality.
+
+LEGACY MODULE — Not yet ported to the YAML solver framework.
+Current public solve path is ``nusol.solve(yaml_path)``.
+"""
 
 from __future__ import annotations
 

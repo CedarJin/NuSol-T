@@ -1,4 +1,9 @@
 # 汤和炖菜 (牛肉汤、鸡汤、蔬菜汤等)
+#
+# LEGACY DESIGN PROFILE — Not a NuSol YAML 1.0 solve document.
+# These are pre-refactor constraint designs, not consumed by nusol.solve().
+# See docs/DETAILED_IMPROVEMENT_PLAN.md §5.12 for context.
+#
 # 特征: 水占大头(50-80%), 少量固体食材, 盐含量高
 # 挑战: 多个固体食材配比接近, 欠定
 

@@ -289,8 +289,18 @@ def export_recipe(fdc_id: int, fndds, sr, output_dir: Path) -> dict | None:
         "variables": {"ingredient_fractions": {"lower": 0.0, "upper": 1.0}},
         "constraints": [
             {"id": "mass_balance", "type": "mass_balance", "mode": "hard"},
-            # ingredient_order skipped: current impl doesn't handle two_percent_or_less
-            # correctly (should only enforce order among main ingredients)
+            {
+                "id": "declaration_order",
+                "type": "ingredient_order",
+                "mode": "hard",
+                "config": {"groups": ["main"]},
+            },
+            {
+                "id": "two_percent_rule",
+                "type": "two_percent",
+                "mode": "hard",
+                "config": {"source": "declaration_group"},
+            },
             {"id": "label_fit", "type": "nutrient_interval", "mode": "soft", "weight": 10.0},
         ],
         "solver": {"point": {"backend": "scipy_slsqp"}, "bounds": {"backend": "highs_lp"}},

@@ -1,4 +1,9 @@
 # NuSol-T Constraint Configuration
+#
+# LEGACY DESIGN PROFILE — Not a NuSol YAML 1.0 solve document.
+# These are pre-refactor constraint designs, not consumed by nusol.solve().
+# See docs/DETAILED_IMPROVEMENT_PLAN.md §5.12 for context.
+#
 # Each constraint has: name, type, priority (P0-P4), weight, conditions, params
 #
 # Constraint types:

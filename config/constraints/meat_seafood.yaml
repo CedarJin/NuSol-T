@@ -1,4 +1,9 @@
 # 肉类和海鲜 (鸡肉、牛肉、鱼等)
+#
+# LEGACY DESIGN PROFILE — Not a NuSol YAML 1.0 solve document.
+# These are pre-refactor constraint designs, not consumed by nusol.solve().
+# See docs/DETAILED_IMPROVEMENT_PLAN.md §5.12 for context.
+#
 # 特征: 肉类主料占绝大部分(70-95%), 油/盐为辅
 # 挑战: 多种鱼肉营养 profile 相似, 不可区分 → TrustReport 标记
 

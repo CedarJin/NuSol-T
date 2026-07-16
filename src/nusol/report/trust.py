@@ -1,4 +1,9 @@
-"""TrustReport builder — assembles results into a comprehensive report."""
+"""TrustReport builder — assembles results into a comprehensive report.
+
+LEGACY MODULE — Not yet ported to the YAML solver framework.
+Current public solve path is ``nusol.solve(yaml_path)``.
+TrustReport + TrustGrade are planned for Phase 6+.
+"""
 
 from __future__ import annotations
 

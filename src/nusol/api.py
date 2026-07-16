@@ -17,6 +17,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+import numpy as np
+
 from nusol.backends.base import SolveStats
 from nusol.backends.registry import get_backend_registry
 from nusol.compiler.compiler import compile_problem
@@ -108,7 +110,12 @@ def solve(yaml_path: str | Path) -> dict[str, Any]:
         except NuSolError as exc:
             bounds_stats = SolveStats(False, "error", str(exc))
 
-    # 7. Build result
+    # 7. Compute per-constraint diagnostics
+    constraint_diagnostics = _compute_diagnostics(
+        compiled, fractions, bounds_dict,
+    )
+
+    # 8. Build result
     t_end = time.perf_counter()
 
     diagnostics = {
@@ -140,6 +147,7 @@ def solve(yaml_path: str | Path) -> dict[str, Any]:
             for ing in problem.ingredient_ids
         } if bounds_dict else {},
         "diagnostics": diagnostics,
+        "constraint_diagnostics": constraint_diagnostics,
         "manifest": _build_manifest(
             problem.problem_id, str(path), resolved_dict,
             diagnostics, fractions,
@@ -260,6 +268,57 @@ def _problem_for_bounds(
         else:
             constraints.append(constraint)
     return replace(problem, linear_constraints=tuple(constraints))
+
+
+def _compute_diagnostics(
+    compiled: CompiledProblem,
+    fractions: dict[str, float],
+    bounds: dict[str, tuple[float, float]],
+) -> list[dict[str, Any]]:
+    """Compute per-constraint diagnostics from solved fractions.
+
+    For each linear constraint, computes the actual value, residual,
+    slack, and weighted penalty contribution.
+    """
+    n = compiled.n_variables
+    ing_ids = list(compiled.ingredient_ids)
+    x = [fractions.get(iid, 0.0) for iid in ing_ids]
+    if not x:
+        return []
+
+    result = []
+    for lc in compiled.linear_constraints:
+        coeff = lc.coefficients
+        if coeff.shape[0] != n:
+            continue
+        value = float(np.dot(coeff, x[:n]))
+
+        lower = lc.lower
+        upper = lc.upper
+        slack = 0.0
+
+        if lc.mode == "soft":
+            if lower is not None and value < lower:
+                slack = max(slack, lower - value)
+            if upper is not None and value > upper:
+                slack = max(slack, value - upper)
+
+        weighted_penalty = lc.weight * slack * slack if lc.mode == "soft" else 0.0
+
+        result.append({
+            "constraint_id": lc.id,
+            "source_id": lc.source_id,
+            "type": "linear_constraint",
+            "mode": lc.mode,
+            "weight": lc.weight,
+            "value": round(value, 6),
+            "lower": lower,
+            "upper": upper,
+            "slack": round(slack, 6),
+            "weighted_penalty": round(weighted_penalty, 6),
+        })
+
+    return result
 
 
 def _get_git_commit(path: str) -> str | None:

@@ -1,4 +1,9 @@
 # 乳制品和甜点 (酸奶、冰淇淋、布丁等)
+#
+# LEGACY DESIGN PROFILE — Not a NuSol YAML 1.0 solve document.
+# These are pre-refactor constraint designs, not consumed by nusol.solve().
+# See docs/DETAILED_IMPROVEMENT_PLAN.md §5.12 for context.
+#
 # 特征: 乳基为主(60-90%), 糖/水果为辅
 # 挑战: 两种相似冰淇淋不可区分, 需要 similarity_anti_extreme
 

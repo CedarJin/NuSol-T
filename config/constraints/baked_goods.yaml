@@ -1,4 +1,9 @@
 # 烘焙食品 (面包、饼干、蛋糕等)
+#
+# LEGACY DESIGN PROFILE — Not a NuSol YAML 1.0 solve document.
+# These are pre-refactor constraint designs, not consumed by nusol.solve().
+# See docs/DETAILED_IMPROVEMENT_PLAN.md §5.12 for context.
+#
 # 特征: 面粉为第一主料(40-70%), 糖/油为辅, 盐<2%
 # 挑战: 面粉和糖的 Big7 profile 差异大, 容易通过 nutrient bound 约束
 

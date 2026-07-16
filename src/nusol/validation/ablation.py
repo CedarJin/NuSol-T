@@ -1,4 +1,9 @@
-"""Ablation study — systematically disable constraints to measure their impact."""
+"""Ablation study — systematically disable constraints to measure their impact.
+
+LEGACY MODULE — Uses pre-refactor architecture.
+Current public solve path is ``nusol.solve(yaml_path)``.
+Ablation is planned for Phase 4+ under the new framework.
+"""
 
 from __future__ import annotations
 

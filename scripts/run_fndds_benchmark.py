@@ -181,6 +181,9 @@ def main():
     # Summary
     summary = {
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        "benchmark_mode": "branded_food_simulation",  # FNDDS recipe with branded-food conditions
+        "mapping_mode": "code_assisted",  # Uses FNDDS ingredient code in 4-level mapper (L1)
+        "observation_mode": "fndds_final_nutrients_pm10pct",  # FNDDS final product ±10%
         "total_in_validation_set": len(val_ids),
         "nfs_skipped": len(skipped_nfs),
         "attempted": len(usable),
