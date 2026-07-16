@@ -174,6 +174,7 @@ def export_recipe(fdc_id: int, fndds, sr, output_dir: Path) -> dict | None:
         kept.append({
             "name": name,
             "code": code,
+            "weight_g": wt,
             "true_frac": frac,
             "is_2pct": frac <= 0.02,
         })
@@ -282,8 +283,14 @@ def export_recipe(fdc_id: int, fndds, sr, output_dir: Path) -> dict | None:
             label_energy = nr.amount
             break
 
-    true_fracs = {ing["id"]: ing["true_frac"] for ing in ordered}
-    yield_factor = _detect_yield_factor(true_fracs, ing_energy, label_energy)
+    # Use raw weight fraction (not true fraction) — eliminates info leakage
+    # while giving identical yield factor because both are energy ratios.
+    kept_wt = sum(ing.get("weight_g", 0) for ing in ordered)
+    if kept_wt > 0:
+        raw_fracs = {ing["id"]: ing["weight_g"] / kept_wt for ing in ordered}
+    else:
+        raw_fracs = {ing["id"]: 1.0 / len(ordered) for ing in ordered}
+    yield_factor = _detect_yield_factor(raw_fracs, ing_energy, label_energy)
     if yield_factor > 1.0:
         warnings.append(
             f"Yield factor {yield_factor:.3f} detected: raw→cooked moisture loss"
