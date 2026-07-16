@@ -38,7 +38,10 @@ class ScipySLSQPBackend(PointBackend):
     def __init__(self, options: dict[str, Any] | None = None) -> None:
         self.options = {
             "max_iterations": 500,
+            "adaptive_retry": True,
+            "retry_max_iterations": 2000,
             "tolerance": 1e-8,
+            "random_restarts": 10,
             **(options or {}),
         }
 
@@ -243,30 +246,77 @@ class ScipySLSQPBackend(PointBackend):
             elif hi is not None:
                 x0[n + si] = max(0.0, pred - hi)
 
-        # ── Solve ──
-        try:
-            result = minimize(
-                objective, x0,
+        def run_minimize(start: np.ndarray, max_iterations: int):
+            return minimize(
+                objective,
+                start,
                 method="SLSQP",
                 bounds=bounds,
                 constraints=scipy_cons,
                 options={
-                    "maxiter": self.options["max_iterations"],
+                    "maxiter": max_iterations,
                     "ftol": self.options["tolerance"],
                     "disp": False,
                 },
             )
 
-            solve_time = time.perf_counter() - t0
+        def hard_constraints_satisfied(candidate: np.ndarray) -> bool:
+            for j in range(n_hard):
+                v = a_hard[j] @ candidate
+                if v < lb_hard[j] - 1e-4 or v > ub_hard[j] + 1e-4:
+                    return False
+            return True
 
+        retry_trace: list[dict[str, Any]] = []
+
+        # ── Solve ──
+        try:
+            max_iterations = int(self.options["max_iterations"])
+            result = run_minimize(x0, max_iterations)
+            active_max_iterations = max_iterations
             x_opt = np.clip(result.x[:n], variable_lower, variable_upper)
+            hard_ok = hard_constraints_satisfied(x_opt)
+            retry_trace.append({
+                "attempt": 1,
+                "kind": "initial",
+                "max_iterations": max_iterations,
+                "success": bool(result.success and hard_ok),
+                "solver_success": bool(result.success),
+                "hard_constraints_satisfied": hard_ok,
+                "iterations": result.nit if hasattr(result, "nit") else None,
+                "message": str(result.message),
+            })
+
+            retry_max_iterations = int(self.options["retry_max_iterations"])
+            if (
+                self.options.get("adaptive_retry", True)
+                and not (result.success and hard_ok)
+                and retry_max_iterations > max_iterations
+            ):
+                result = run_minimize(x0, retry_max_iterations)
+                active_max_iterations = retry_max_iterations
+                x_opt = np.clip(result.x[:n], variable_lower, variable_upper)
+                hard_ok = hard_constraints_satisfied(x_opt)
+                retry_trace.append({
+                    "attempt": 2,
+                    "kind": "adaptive_max_iterations",
+                    "max_iterations": retry_max_iterations,
+                    "success": bool(result.success and hard_ok),
+                    "solver_success": bool(result.success),
+                    "hard_constraints_satisfied": hard_ok,
+                    "iterations": result.nit if hasattr(result, "nit") else None,
+                    "message": str(result.message),
+                })
+
+            solve_time = time.perf_counter() - t0
 
             # Verify hard constraint satisfaction
             for i in range(n_hard):
                 val = a_hard[i] @ x_opt
                 if val < lb_hard[i] - 1e-4 or val > ub_hard[i] + 1e-4:
                     # Hard constraint violated — try re-optimizing from a better start
-                    for seed in range(10):
+                    random_restarts = int(self.options["random_restarts"])
+                    for seed in range(random_restarts):
                         rng = np.random.default_rng(seed)
                         x0_retry = np.zeros(nv)
                         x0_retry[:n] = rng.uniform(variable_lower, variable_upper)
@@ -276,24 +326,20 @@ class ScipySLSQPBackend(PointBackend):
                                 x0_retry[n + si] = max(0.0, lo - pred)
                             elif hi is not None:
                                 x0_retry[n + si] = max(0.0, pred - hi)
-                        result = minimize(
-                            objective, x0_retry,
-                            method="SLSQP",
-                            bounds=bounds,
-                            constraints=scipy_cons,
-                            options={
-                                "maxiter": self.options["max_iterations"],
-                                "ftol": self.options["tolerance"],
-                                "disp": False,
-                            },
-                        )
+                        result = run_minimize(x0_retry, active_max_iterations)
                         x_opt = np.clip(result.x[:n], variable_lower, variable_upper)
-                        all_ok = True
-                        for j in range(n_hard):
-                            v = a_hard[j] @ x_opt
-                            if v < lb_hard[j] - 1e-4 or v > ub_hard[j] + 1e-4:
-                                all_ok = False
-                                break
+                        all_ok = hard_constraints_satisfied(x_opt)
+                        retry_trace.append({
+                            "attempt": len(retry_trace) + 1,
+                            "kind": "random_restart",
+                            "seed": seed,
+                            "max_iterations": active_max_iterations,
+                            "success": bool(result.success and all_ok),
+                            "solver_success": bool(result.success),
+                            "hard_constraints_satisfied": all_ok,
+                            "iterations": result.nit if hasattr(result, "nit") else None,
+                            "message": str(result.message),
+                        })
                         if all_ok:
                             break
 
@@ -306,6 +352,7 @@ class ScipySLSQPBackend(PointBackend):
                     objective_value=float(objective(result.x)),
                     iterations=result.nit if hasattr(result, "nit") else None,
                     solve_time_s=solve_time,
+                    extra={"retry_trace": retry_trace},
                 )
                 return fractions, stats
             else:

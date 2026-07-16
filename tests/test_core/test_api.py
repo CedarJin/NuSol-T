@@ -100,6 +100,28 @@ class TestSolveAPI:
         assert result["manifest"]["problem_id"] == "test_api"
         assert "resolved_config" in result["manifest"]
 
+    def test_solve_returns_point_retry_trace(self, bread_yaml: Path) -> None:
+        import nusol
+
+        doc = yaml.safe_load(bread_yaml.read_text())
+        doc["solver"] = {
+            "point": {
+                "backend": "scipy_slsqp",
+                "options": {
+                    "max_iterations": 500,
+                    "retry_max_iterations": 2000,
+                },
+            }
+        }
+        bread_yaml.write_text(yaml.safe_dump(doc, sort_keys=False))
+
+        result = nusol.solve(str(bread_yaml))
+
+        retry_trace = result["diagnostics"]["point"]["retry_trace"]
+        assert retry_trace[0]["kind"] == "initial"
+        assert retry_trace[0]["max_iterations"] == 500
+        assert retry_trace[0]["solver_success"] is True
+
     def test_point_only_does_not_run_bounds(self, bread_yaml: Path) -> None:
         import nusol
 

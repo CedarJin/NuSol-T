@@ -10,7 +10,7 @@ NuSol-T 已完成 YAML solver framework 的核心重构。当前系统可以用 
 
 | 项目 | 结果 |
 |---|---:|
-| Pytest | 259 passed |
+| Pytest | 261 passed |
 | FNDDS benchmark | 197 个多配料配方 |
 | Solve 成功 | 189 个 |
 | 成功率 | 95.9% |

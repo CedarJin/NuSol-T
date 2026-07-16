@@ -1,6 +1,6 @@
 # FNDDS Benchmark 实验结果
 
-> 2026-07-15 | 分支: `refactor/yaml-solver-framework` | 260 tests passing
+> 2026-07-15 | 分支: `refactor/yaml-solver-framework` | 261 tests passing
 
 本文记录 FNDDS workflow 的扩展 benchmark 结果。需要和 `docs/CURRENT_STATUS.md` 区分：
 
@@ -241,7 +241,7 @@ export_diagnostics:
 
 | 失败类型 | 当前表现 | 建议提升办法 | 验收指标 |
 |----------|----------|--------------|----------|
-| SLSQP 迭代不足 | 147/159 通过 `max_iterations=2000` 恢复 | 增加 adaptive retry policy：先 500，再 2000，再切换备选初始化/solver；记录每次 retry objective 和 violation | 默认自动 pipeline 恢复大部分 147 个样本，不需要人工改参数 |
+| SLSQP 迭代不足 | 147/159 通过 `max_iterations=2000` 恢复 | 已实现基础 adaptive retry：先用 YAML `max_iterations`，失败后可用 `retry_max_iterations=2000` 自动重试，并输出 `retry_trace`；后续还需接 benchmark failure taxonomy | 默认自动 pipeline 应能恢复部分原需人工改参数的样本，需重跑全量 benchmark 验证 |
 | 平坦目标面 / 低辨识度 | 面包+果酱、意面+酱、谷物+糖+油等组合营养重叠 | 增加 condition diagnostics：composition matrix rank、condition number、ingredient cosine similarity、active constraint count | failure report 能区分“不可辨识”和“优化失败” |
 | 器官肉 / 特殊肉类 | SR Legacy profile 可能不适配实际加工状态 | 增加 category-specific profile selection；对 cured/dried/fried/cooked organ meat 使用更接近的 profile 或 yield/moisture metadata | 器官肉案例 residual 降低，或明确报告 profile mismatch |
 | 油/盐/糖小比例变量不稳定 | 小比例 ingredient 对少数 nutrient 高敏感 | 对 salt/oil/sugar 添加经过 calibration 的弱 prior 或 declared upper bound；但必须可 ablation | 小比例 ingredient 极端解减少，prior contribution 可解释 |

@@ -17,7 +17,7 @@
 
 | 项目 | 当前结果 |
 |---|---:|
-| Pytest | 259 passed |
+| Pytest | 261 passed |
 | FNDDS 多配料配方 | 197 |
 | Solve 成功 | 189 / 197 |
 | Solve 成功率 | 95.9% |

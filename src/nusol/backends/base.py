@@ -18,6 +18,7 @@ class SolveStats:
         objective_value: float | None = None,
         iterations: int | None = None,
         solve_time_s: float = 0.0,
+        extra: dict[str, Any] | None = None,
     ) -> None:
         self.success = success
         self.status = status       # "optimal" / "infeasible" / "unbounded" / "error"
@@ -25,9 +26,10 @@ class SolveStats:
         self.objective_value = objective_value
         self.iterations = iterations
         self.solve_time_s = solve_time_s
+        self.extra = extra or {}
 
     def as_dict(self) -> dict[str, Any]:
-        return {
+        data = {
             "success": self.success,
             "status": self.status,
             "message": self.message,
@@ -35,6 +37,8 @@ class SolveStats:
             "iterations": self.iterations,
             "solve_time_s": self.solve_time_s,
         }
+        data.update(self.extra)
+        return data
 
 
 class PointBackend(Protocol):
