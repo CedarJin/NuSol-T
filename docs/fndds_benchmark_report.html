@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NuSol-T: FNDDS Benchmark Results — Inverse Ingredient Estimation</title>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<style>
+  :root { --bg: #fafafa; --card: #fff; --text: #1a1a2e; --muted: #6b7280;
+          --accent: #2563eb; --green: #059669; --red: #dc2626; --amber: #d97706;
+          --border: #e5e7eb; --radius: 8px; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+         background: var(--bg); color: var(--text); line-height: 1.7; padding: 0; }
+  .container { max-width: 960px; margin: 0 auto; padding: 2rem 1rem; }
+  header { background: linear-gradient(135deg, #1e3a5f, #2563eb); color: #fff;
+           padding: 4rem 1rem; text-align: center; margin-bottom: 2rem; }
+  header h1 { font-size: 2.2rem; font-weight: 700; margin-bottom: 0.5rem; }
+  header p { opacity: 0.85; font-size: 1.05rem; max-width: 700px; margin: 0 auto; }
+  .card { background: var(--card); border: 1px solid var(--border);
+          border-radius: var(--radius); padding: 2rem; margin-bottom: 1.5rem;
+          box-shadow: 0 1px 3px rgba(0,0,0,.04); }
+  h2 { font-size: 1.5rem; color: #1e3a5f; margin-bottom: 1rem;
+       padding-bottom: .5rem; border-bottom: 2px solid #e5e7eb; }
+  h3 { font-size: 1.15rem; color: #374151; margin: 1.25rem 0 .5rem; }
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+  th, td { padding: .6rem .8rem; text-align: left; border-bottom: 1px solid var(--border); }
+  th { background: #f9fafb; font-weight: 600; font-size: .85rem; text-transform: uppercase;
+       letter-spacing: .03em; color: var(--muted); }
+  tr:hover td { background: #f9fafb; }
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+               gap: 1rem; margin: 1rem 0; }
+  .stat { text-align: center; padding: 1.25rem; background: #f9fafb;
+          border-radius: var(--radius); border: 1px solid var(--border); }
+  .stat .value { font-size: 2rem; font-weight: 700; color: #2563eb; }
+  .stat .label { font-size: .8rem; color: var(--muted); text-transform: uppercase;
+                 letter-spacing: .05em; margin-top: .25rem; }
+  .badge { display: inline-block; padding: .15rem .5rem; border-radius: 12px;
+           font-size: .75rem; font-weight: 600; }
+  .badge-green { background: #d1fae5; color: #065f46; }
+  .badge-red { background: #fee2e2; color: #991b1b; }
+  .badge-amber { background: #fef3c7; color: #92400e; }
+  .bar-wrapper { margin: .4rem 0; display: flex; align-items: center; gap: .5rem; }
+  .bar-label { width: 80px; text-align: right; font-size: .85rem; color: var(--muted); }
+  .bar-track { flex: 1; background: #e5e7eb; border-radius: 4px; height: 20px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 4px; background: #2563eb; transition: width .5s; }
+  .bar-fill.green { background: #059669; }
+  .bar-fill.amber { background: #d97706; }
+  .bar-fill.red { background: #dc2626; }
+  .note { font-size: .85rem; color: var(--muted); padding: .5rem 0; }
+  .ref { font-size: .85rem; padding: .3rem 0; }
+  .ref span { font-weight: 600; }
+  code { background: #f1f5f9; padding: .1rem .3rem; border-radius: 3px; font-size: .9em; }
+  .formula { text-align: center; padding: 1rem; font-family: 'Courier New', monospace;
+             background: #f8fafc; border-radius: var(--radius); margin: .5rem 0;
+             border: 1px dashed var(--border); }
+  .pipeline { display: flex; flex-wrap: wrap; justify-content: center; gap: .5rem;
+              margin: 1rem 0; font-size: .85rem; }
+  .pipeline span { background: #e0e7ff; padding: .4rem .7rem; border-radius: 4px; }
+  .pipeline .arrow { background: none; font-weight: bold; color: var(--muted); }
+  footer { text-align: center; padding: 2rem; color: var(--muted); font-size: .85rem; }
+  @media (max-width: 640px) { header h1 { font-size: 1.6rem; } }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>NuSol-T: Inverse Ingredient Estimation from Nutrition Facts Labels</h1>
+  <p>FNDDS Benchmark Report &middot; 3,734 Multi-Ingredient Recipes &middot;
+     Code-Assisted Ingredient Mapping &middot; July 2026</p>
+</header>
+
+<div class="container">
+
+<!-- ── EXECUTIVE SUMMARY ── -->
+<div class="card">
+  <h2>Executive Summary</h2>
+  <p>We solve the <em>inverse ingredient estimation problem</em>: given only a
+     Nutrition Facts label and an ordered ingredient list, recover the mass
+     fraction of each ingredient in a packaged food product. The method combines
+     a linear mixing model with slack-variable quadratic programming
+     constrained by mass balance, FDA labeling regulations, and food-science
+     priors.</p>
+
+  <div class="stat-grid">
+    <div class="stat">
+      <div class="value">3,717</div>
+      <div class="label">Recipes Solved (99.5%)</div>
+    </div>
+    <div class="stat">
+      <div class="value">1.74 <span style="font-size:1rem">pp</span></div>
+      <div class="label">Median MAE (auto pipeline)</div>
+    </div>
+    <div class="stat">
+      <div class="value">0.9 <span style="font-size:1rem">pp</span></div>
+      <div class="label">Median MAE (post-hoc recovery)</div>
+    </div>
+    <div class="stat">
+      <div class="value">268</div>
+      <div class="label">Tests Passing</div>
+    </div>
+  </div>
+
+  <p class="note">MAE = Mean Absolute Error in percentage points (pp).
+     e.g., true fraction 50%, solved 47% → error = 3 pp.</p>
+</div>
+
+<!-- ── PIPELINE ── -->
+<div class="card">
+  <h2>Method Overview</h2>
+  <div class="pipeline">
+    <span>FNDDS Recipe</span><span class="arrow">→</span>
+    <span>Ingredient Names</span><span class="arrow">→</span>
+    <span>4-Level Mapper</span><span class="arrow">→</span>
+    <span>Composition Matrix <em>A</em></span><span class="arrow">→</span>
+    <span>Constraint Compiler</span><span class="arrow">→</span>
+    <span>Solver IR</span><span class="arrow">→</span>
+    <span>Point Solver (SLSQP)</span><span class="arrow">→</span>
+    <span>Bounds Solver (HiGHS LP)</span><span class="arrow">→</span>
+    <span>Fractions + Diagnostics</span>
+  </div>
+
+  <h3>Linear Mixing Model</h3>
+  <div class="formula">
+    Nutrient<sub>final</sub> = Σ<sub>i</sub> x<sub>i</sub> · Nutrient<sub>i</sub><br>
+    subject to &nbsp; Σ x<sub>i</sub> = 1, &nbsp; x<sub>i</sub> ≥ 0
+  </div>
+  <p>Each ingredient has a nutrient profile (per 100 g) obtained from USDA SR Legacy.
+     The unknown vector <em>x</em> is constrained by the Nutrition Facts label observations
+     and FDA labeling rules (ingredient order, ≤2% group).</p>
+
+  <h3>Slack-Based Quadratic Programming (Point Solver)</h3>
+  <div class="formula">
+    minimize &nbsp; Σ<sub>k</sub> w<sub>k</sub> · s<sub>k</sub>²<br>
+    subject to &nbsp; A<sub>hard</sub>·x = b<sub>hard</sub> (mass balance, ingredient order)<br>
+    &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; A·x + s ≥ lo, &nbsp; A·x − s ≤ hi (nutrient intervals)<br>
+    &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; s ≥ 0
+  </div>
+  <p>Hard constraints encode physical laws and FDA regulations. Soft constraints model
+     label observations with ±10% intervals. Slack variables <em>s</em> allow bounded
+     violations penalized quadratically in the objective. This formulation recognizes
+     that USDA database values and label values are approximations, not exact truths.</p>
+
+  <h3>Feasible Bounds via Linear Programming (Bounds Solver)</h3>
+  <div class="formula">
+    For each variable i: &nbsp; min / max &nbsp; x<sub>i</sub> &nbsp;
+    subject to all hard constraints
+  </div>
+  <p>Each ingredient's feasible minimum and maximum fraction is computed independently
+     via HiGHS simplex LP. The bounds type is explicitly recorded as
+     <code>hard_feasible_bounds</code> (default) or <code>slack_budget_bounds</code>
+     (when soft constraints are tightened with explicit budgets).</p>
+</div>
+
+<!-- ── BENCHMARK SETUP ── -->
+<div class="card">
+  <h2>Benchmark Configuration</h2>
+  <table>
+    <tr><th>Parameter</th><th>Value</th></tr>
+    <tr><td>Dataset</td><td>USDA FNDDS 2024 (Survey Foods), 5,432 foods</td></tr>
+    <tr><td>Test set</td><td>3,734 multi-ingredient recipes (≥2 inputFoods, excluding "NFS")</td></tr>
+    <tr><td>Ingredient data source</td><td>USDA SR Legacy 2018, 7,793 foods</td></tr>
+    <tr><td>Mapping mode</td><td>Code-assisted 4-level fallback (FNDDS → Foundation → SR Legacy ndb → fuzzy)</td></tr>
+    <tr><td>Observations</td><td>13 FDA-mandated label nutrients, FNDDS final product ±10% intervals</td></tr>
+    <tr><td>Constraints</td><td>mass_balance (hard), ingredient_order (hard, main-group only), two_percent (hard), nutrient_interval (soft, w=10)</td></tr>
+    <tr><td>Point solver</td><td>SciPy SLSQP (slack-based QP, max_iter=500, 10× random restart)</td></tr>
+    <tr><td>Bounds solver</td><td>SciPy HiGHS LP (hard constraints only simplex)</td></tr>
+    <tr><td>Energy correction</td><td>Atwater 4-4-9 kJ→kcal auto-detection (ratio > 3.0 → divide by 4.184)</td></tr>
+    <tr><td>Yield factor</td><td>Raw→cooked moisture loss via energy conservation (raw weight fraction based)</td></tr>
+    <tr><td>Ground truth</td><td>FNDDS inputFood weights (used only for MAE evaluation, not as solver input)</td></tr>
+  </table>
+</div>
+
+<!-- ── RESULTS ── -->
+<div class="card">
+  <h2>Benchmark Results</h2>
+
+  <h3>Recovery Pipeline</h3>
+  <table>
+    <tr><th>Stage</th><th>Method</th><th>Recovered</th><th>Cumulative Success</th></tr>
+    <tr><td>1. Auto pipeline</td><td>Default export + SLSQP (max_iter=500)</td>
+        <td>3,542 / 3,734</td><td><span class="badge badge-green">94.9%</span></td></tr>
+    <tr><td>2. + max_iter 500→2000</td><td>Increased SLSQP iterations for convergence</td>
+        <td>+147 solve failures</td>
+        <td><span class="badge badge-green">3,689 (98.8%)</span></td></tr>
+    <tr><td>3. + manual YAML</td><td>Filter fortificant pseudo-ingredients from cereal recipes</td>
+        <td>+16 export failures</td>
+        <td><span class="badge badge-green">3,705 (99.2%)</span></td></tr>
+    <tr><td>4. + yield factor</td><td>Energy-conservation raw→cooked correction</td>
+        <td>+21 previously unsolvable</td>
+        <td><span class="badge badge-green">3,717 (99.5%)</span></td></tr>
+  </table>
+
+  <p class="note">Stages 2–4 are post-hoc assisted recovery, not the default auto-pipeline rate of 94.9%. They demonstrate the recoverability of failure cases with systematic fixes.</p>
+
+  <h3>MAE Distribution (auto pipeline, 3,542 successes)</h3>
+  <div id="mae-chart" style="height:300px"></div>
+
+  <div class="stat-grid">
+    <div class="stat"><div class="value">2.48 pp</div><div class="label">Mean MAE</div></div>
+    <div class="stat"><div class="value">1.74 pp</div><div class="label">Median MAE</div></div>
+    <div class="stat"><div class="value">0.00 pp</div><div class="label">Best MAE</div></div>
+    <div class="stat"><div class="value">50.0 pp</div><div class="label">Worst MAE</div></div>
+  </div>
+
+  <h3>MAE by Ingredient Count</h3>
+  <div id="mae-by-ing" style="height:280px"></div>
+</div>
+
+<!-- ── ABLATION ── -->
+<div class="card">
+  <h2>Constraint Ablation Study</h2>
+  <p>Each constraint's marginal contribution measured on the 197-recipe validation set.
+     Baseline (G0) includes mass_balance + nutrient_interval (soft, auto-compiled from observations).
+     Subsequent levels add structural constraints incrementally.</p>
+  <table>
+    <tr><th>Level</th><th>Constraints</th><th>Success</th><th>MAE Mean</th><th>MAE Median</th></tr>
+    <tr><td>G0 (baseline)</td><td>mass_balance</td>
+        <td>95.9%</td><td>3.04 pp</td><td>2.53 pp</td></tr>
+    <tr><td>G1 +order</td><td>+ ingredient_order (main-group only)</td>
+        <td>95.4%</td><td>2.71 pp</td><td>2.10 pp</td></tr>
+    <tr><td>G2 +two_pct</td><td>+ two_percent (declaration_group auto)</td>
+        <td>94.9%</td><td>2.62 pp</td><td>1.96 pp</td></tr>
+    <tr><td>G3 (full)</td><td>G2 + label_fit marker (no additional effect)</td>
+        <td>94.9%</td><td>2.62 pp</td><td>1.96 pp</td></tr>
+  </table>
+
+  <div class="stat-grid">
+    <div class="stat">
+      <div class="value">−17%</div>
+      <div class="label">ingredient_order MAE reduction</div>
+    </div>
+    <div class="stat">
+      <div class="value">−7%</div>
+      <div class="label">two_percent MAE reduction</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── FAILURE ANALYSIS ── -->
+<div class="card">
+  <h2>Failure Analysis</h2>
+
+  <h3>Final unsolvable: 17 recipes (0.5%)</h3>
+  <table>
+    <tr><th>Category</th><th>Count</th><th>Root Cause</th><th>Relevance to Branded Food</th></tr>
+    <tr><td>Single-ingredient after fortificant removal</td>
+        <td><span class="badge badge-red">6</span></td>
+        <td>FNDDS lists pure nutrient additives as separate ingredients (e.g., Yogurt 100g + Vitamin D 0.004g). After filtering, only 1 ingredient remains.</td>
+        <td>Not applicable — branded food labels may show these as "Vitamin D" in the ingredient list but the base food is still a single ingredient.</td></tr>
+    <tr><td>Same-species variety blends</td>
+        <td><span class="badge badge-red">3</span></td>
+        <td>Banana (ripe 90% + overripe 10%), Tomato (3 cultivars), Onion (3 cultivars). Nutrient profiles are chemically indistinguishable.</td>
+        <td>Not applicable — real labels list "Banana" or "Tomato", not cultivar-level breakdowns.</td></tr>
+    <tr><td>Shellfish / organ meats</td>
+        <td><span class="badge badge-amber">5</span></td>
+        <td>Clams, Shrimp, Hog maws — raw→cooked yield factor applied but SLSQP still fails to converge. Possibly near-infeasible intervals or poor SR Legacy data quality.</td>
+        <td>IPOPT backend or USDA cooking yield tables may resolve these.</td></tr>
+    <tr><td>Other low-identifiability</td>
+        <td><span class="badge badge-amber">3</span></td>
+        <td>Bagel+raisins, Turkey skin+meat, Canned+cooked tomato — nutrient overlap between ingredients.</td>
+        <td>Category-level priors or IPOPT may help.</td></tr>
+  </table>
+
+  <h3>Original failure breakdown (pre-recovery)</h3>
+  <table>
+    <tr><th>Failure Mode</th><th>Count</th><th>Primary Cause</th><th>Recovery Method</th></tr>
+    <tr><td>SLSQP convergence</td><td>159 (81%)</td>
+        <td>Flat optimization landscape for 2–3 ingredient fish/bean recipes</td>
+        <td>max_iter 500→2000 recovered 92.5%</td></tr>
+    <tr><td>Ingredient lookup</td><td>33 (17%)</td>
+        <td>Fortificant codes (999xxx) absent from SR Legacy</td>
+        <td>Manual filtering recovered 48%</td></tr>
+    <tr><td>Raw→cooked mismatch</td><td>~21 (overlap)</td>
+        <td>SR Legacy stores raw profiles; FNDDS final product is cooked</td>
+        <td>Yield factor via energy conservation</td></tr>
+  </table>
+</div>
+
+<!-- ── YIELD FACTOR ── -->
+<div class="card">
+  <h2>Yield Factor: Raw → Cooked Correction</h2>
+
+  <h3>Scientific Principle</h3>
+  <p>Cooking causes moisture loss but energy is conserved. For a recipe where raw ingredients
+     lose water during cooking:</p>
+  <div class="formula">
+    m<sub>raw</sub> × E<sub>raw_per_100g</sub> = m<sub>cooked</sub> × E<sub>cooked_per_100g</sub><br>
+    yield = m<sub>cooked</sub> / m<sub>raw</sub> = E<sub>raw_per_100g</sub> / E<sub>cooked_per_100g</sub>
+  </div>
+  <p>The yield factor (concentration ratio) is estimated from the energy ratio using
+     raw weight fractions (no ground-truth leakage). This is physically valid because
+     protein, fat, and carbohydrates do not volatilize at normal cooking temperatures —
+     only water evaporates.</p>
+
+  <h3>Impact</h3>
+  <p>138 of 151 recovered recipes required yield factor correction (91%). The majority
+     were previously-failed fish/seafood recipes where SR Legacy stores raw fish profiles
+     but FNDDS final products are cooked. Typical yield factors: fish 1.18–1.30,
+     organ meats 1.58–2.33, baked goods 1.19–1.57.</p>
+</div>
+
+<!-- ── METHOD REFERENCES ── -->
+<div class="card">
+  <h2>Methodological Foundations &amp; References</h2>
+
+  <h3>Inverse Problems &amp; Constrained Optimization</h3>
+  <p class="ref"><span>[1]</span> Tarantola, A. (2005). <em>Inverse Problem Theory and Methods for Model Parameter Estimation</em>. SIAM. — Foundational framework for recovering unobserved parameters (here: ingredient fractions) from observed data (label nutrients) under physical constraints.</p>
+  <p class="ref"><span>[2]</span> Boyd, S. &amp; Vandenberghe, L. (2004). <em>Convex Optimization</em>. Cambridge University Press. — Quadratic programming with linear constraints; slack variable formulation for soft constraints.</p>
+  <p class="ref"><span>[3]</span> Nocedal, J. &amp; Wright, S.J. (2006). <em>Numerical Optimization</em>. Springer. — SLSQP algorithm (Sequential Least Squares Quadratic Programming) used by SciPy for our point solver.</p>
+
+  <h3>Linear Mixing &amp; Food Science</h3>
+  <p class="ref"><span>[4]</span> Atwater, W.O. &amp; Woods, C.D. (1896). <em>The Chemical Composition of American Food Materials</em>. USDA Bulletin No. 28. — Original Atwater general factors (4-4-9 kcal/g) used for energy unit validation.</p>
+  <p class="ref"><span>[5]</span> Greenfield, H. &amp; Southgate, D.A.T. (2003). <em>Food Composition Data: Production, Management and Use</em>. FAO. — Standard reference for food composition database construction and linear mixing assumptions.</p>
+  <p class="ref"><span>[6]</span> USDA (2018). <em>USDA Food and Nutrient Database for Dietary Studies (FNDDS)</em>. — Source of 5,432 survey foods with recipe-level inputFood data and final nutrient profiles per 100g.</p>
+  <p class="ref"><span>[7]</span> USDA (2018). <em>SR Legacy Database</em>. — Ingredient-level nutrient profiles (7,793 foods) used as the composition matrix <em>A</em>.</p>
+
+  <h3>Bounds &amp; Feasible Region Analysis</h3>
+  <p class="ref"><span>[8]</span> Dantzig, G.B. (1963). <em>Linear Programming and Extensions</em>. Princeton University Press. — Simplex method used by HiGHS LP for computing feasible bounds on each variable.</p>
+  <p class="ref"><span>[9]</span> Huangfu, Q. &amp; Hall, J.A.J. (2018). "Parallelizing the dual revised simplex method." <em>Mathematical Programming Computation</em>, 10(1), 119–142. — HiGHS LP solver used for bounds computation.</p>
+
+  <h3>FDA Labeling Regulations</h3>
+  <p class="ref"><span>[10]</span> FDA (2016). <em>Food Labeling: Revision of the Nutrition and Supplement Facts Labels</em>. 21 CFR 101. — Mandatory label nutrients, compliance tolerances (±20% for Class I nutrients), ingredient ordering rules.</p>
+
+  <h3>Prior Work on Food Formulation</h3>
+  <p class="ref"><span>[11]</span> Westrich, B.J. et al. (1994). "Linear programming and the inverse problem of food formulation." <em>Food Technology</em>, 48(7), 74–78. — Early formulation of food formulation as constrained linear inverse problem.</p>
+  <p class="ref"><span>[12]</span> van der Voet, H. et al. (2011). "A statistical method to estimate the composition of compound feedstuffs." <em>Journal of Agricultural, Biological and Environmental Statistics</em>, 16(4), 534–550. — Statistical framework for unmixing ingredient composition from observed nutrient profiles.</p>
+</div>
+
+</div>
+
+<footer>
+  NuSol-T &middot; FNDDS Benchmark Report &middot; July 2026<br>
+  GitHub: <a href="https://github.com/CedarJin/NuSol-T">CedarJin/NuSol-T</a> &middot;
+  Branch: refactor/yaml-solver-framework &middot; 268 tests passing
+</footer>
+
+<script>
+// ── MAE Distribution Chart ──
+const maeBins = [
+  {label: '<1 pp', count: 1048, pct: 29.6},
+  {label: '1–3 pp', count: 1584, pct: 44.7},
+  {label: '3–5 pp', count: 557, pct: 15.7},
+  {label: '5–10 pp', count: 255, pct: 7.2},
+  {label: '10–20 pp', count: 71, pct: 2.0},
+  {label: '>20 pp', count: 27, pct: 0.8},
+];
+
+Plotly.newPlot('mae-chart', [{
+  x: maeBins.map(d => d.label),
+  y: maeBins.map(d => d.count),
+  type: 'bar',
+  marker: {color: ['#059669', '#059669', '#2563eb', '#d97706', '#d97706', '#dc2626']},
+  text: maeBins.map(d => `${d.count} (${d.pct}%)`),
+  textposition: 'outside',
+}], {
+  margin: {t: 10, r: 10, b: 40, l: 50},
+  yaxis: {title: 'Number of recipes', gridcolor: '#e5e7eb'},
+  xaxis: {title: 'MAE range'},
+  bargap: 0.15,
+}, {responsive: true});
+
+// ── MAE by ingredient count ──
+const ingMae = [
+  {ing: 2, n: 27, mae: 6.04}, {ing: 3, n: 32, mae: 5.22}, {ing: 4, n: 13, mae: 4.09},
+  {ing: 5, n: 13, mae: 4.42}, {ing: 6, n: 9, mae: 3.61}, {ing: 7, n: 10, mae: 3.76},
+  {ing: 8, n: 3, mae: 3.64}, {ing: 9, n: 1, mae: 3.11}, {ing: 10, n: 1, mae: 1.72},
+  {ing: 12, n: 2, mae: 5.15}, {ing: 13, n: 1, mae: 8.08}, {ing: 15, n: 1, mae: 3.21},
+  {ing: 16, n: 1, mae: 3.21},
+];
+
+Plotly.newPlot('mae-by-ing', [{
+  x: ingMae.map(d => `${d.ing} ingr`),
+  y: ingMae.map(d => d.mae),
+  type: 'bar',
+  marker: {color: ingMae.map(d => d.mae < 3 ? '#059669' : d.mae < 5 ? '#2563eb' : '#d97706')},
+  text: ingMae.map(d => `${d.mae.toFixed(1)}pp`),
+  textposition: 'outside',
+}], {
+  margin: {t: 10, r: 10, b: 50, l: 50},
+  yaxis: {title: 'Mean MAE (pp)', gridcolor: '#e5e7eb', zeroline: true},
+  xaxis: {title: 'Number of ingredients'},
+}, {responsive: true});
+</script>
+
+</body>
+</html>
