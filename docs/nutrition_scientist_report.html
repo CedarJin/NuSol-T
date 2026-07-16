@@ -280,11 +280,11 @@
   </div>
 
   <div class="highlight-box green">
-    <strong>Interpretation for nutrition scientists:</strong> For the median recipe,
-    the estimated ingredient fraction deviates from the true fraction by less than
-    2 grams per 100 g of product, using only the Nutrition Facts label and ingredient
-    list as input. This is comparable to the 0.9% average deviation reported by
-    Bohn et al. (2022) in their validation study.
+    <strong>Interpretation:</strong> For the median recipe, the estimated ingredient
+    fraction deviates from the true fraction by less than 2 grams per 100 g of
+    product, using only the Nutrition Facts label and ingredient list as input.
+    This is comparable to the 0.9% average deviation reported by Bohn et al.
+    (2022) in their validation study.
   </div>
 
   <h3>5.2 &nbsp; MAE Distribution (Auto Pipeline, n = 3,542)</h3>
@@ -318,9 +318,16 @@
      Ingredient order reduces median error by 17%; the two-percent rule contributes
      an additional 7%. Baseline (G0) always includes mass balance + nutrient intervals.</p>
 
-  <h3>5.5 &nbsp; MAE by Number of Ingredients</h3>
+  <h3>5.5 &nbsp; MAE by Broad Food Category</h3>
+  <div id="mae-cat" style="height:380px"></div>
+  <p class="figure-caption">Figure 3. Mean MAE across 15 broad food categories.
+     Fish &amp; Seafood shows the highest median MAE (2.6 pp), likely due to raw→cooked
+     mismatches in SR Legacy nutrient profiles. Vegetables &amp; Legumes and Egg Dishes
+     perform best (median MAE &lt; 1 pp). Error bars show ±1 standard deviation.</p>
+
+  <h3>5.6 &nbsp; MAE by Number of Ingredients</h3>
   <div id="mae-ing" style="height:280px"></div>
-  <p class="figure-caption">Figure 3. Mean MAE generally <em>decreases</em> with more
+  <p class="figure-caption">Figure 4. Mean MAE generally <em>decreases</em> with more
      ingredients — contrary to naive expectation. More ingredients provide more
      independent nutrient dimensions, making the system more overdetermined and
      thus more precisely solvable.</p>
@@ -357,7 +364,7 @@
      of freedom after mass balance; (c) nutrient overlap between similar ingredients.</p>
 
   <div class="highlight-box amber">
-    <strong>Key insight for nutrition scientists:</strong> The method succeeds when
+    <strong>Key insight:</strong> The method succeeds when
     ingredients have chemically distinct nutrient profiles — which is true for the
     vast majority of processed foods (different ingredient <em>categories</em>: grain
     vs. fat vs. sugar vs. protein source). It fails when ingredients are nutritionally
@@ -560,6 +567,40 @@ Plotly.newPlot('mae-ing', [{
   margin: {t: 20, r: 20, b: 60, l: 60},
   yaxis: {title: 'Mean MAE (pp)', gridcolor: '#e5e7eb', zeroline: false},
   xaxis: {title: 'Number of ingredients'},
+}, {responsive: true});
+
+// ── Figure 3: MAE by Broad Food Category ──
+const catData = [
+  {cat: 'Vegetables & Legumes', n: 539, mae: 0.7, sd: 2.1},
+  {cat: 'Infant & Toddler', n: 69, mae: 1.2, sd: 1.5},
+  {cat: 'Egg Dishes', n: 213, mae: 1.6, sd: 1.8},
+  {cat: 'Soups & Sauces', n: 57, mae: 1.5, sd: 1.6},
+  {cat: 'Cereals', n: 48, mae: 1.6, sd: 1.3},
+  {cat: 'Dairy & Alternatives', n: 324, mae: 1.8, sd: 1.9},
+  {cat: 'Pasta, Rice & Grains', n: 335, mae: 1.8, sd: 1.7},
+  {cat: 'Meat & Poultry', n: 723, mae: 2.0, sd: 2.5},
+  {cat: 'Baked Goods', n: 241, mae: 2.1, sd: 2.6},
+  {cat: 'Beverages', n: 126, mae: 1.7, sd: 3.5},
+  {cat: 'Snacks & Sweets', n: 148, mae: 1.5, sd: 2.9},
+  {cat: 'Sandwiches & Fast Food', n: 121, mae: 2.4, sd: 3.0},
+  {cat: 'Fish & Seafood', n: 156, mae: 2.6, sd: 3.6},
+  {cat: 'Fruits & Juices', n: 31, mae: 1.7, sd: 4.2},
+  {cat: 'Other', n: 411, mae: 1.6, sd: 2.9},
+].sort((a, b) => a.mae - b.mae);
+
+Plotly.newPlot('mae-cat', [{
+  x: catData.map(d => d.mae),
+  y: catData.map(d => d.cat),
+  type: 'bar', orientation: 'h',
+  marker: {color: catData.map(d => d.mae < 1.5 ? '#059669' : d.mae < 2.0 ? '#10b981' : d.mae < 2.5 ? '#2563eb' : '#d97706')},
+  text: catData.map(d => `median ${d.mae.toFixed(1)}pp (n=${d.n})`),
+  textposition: 'outside', textfont: {size: 11},
+  error_x: {type: 'data', array: catData.map(d => d.sd), visible: true, color: '#94a3b8', thickness: 1.5},
+}], {
+  margin: {t: 10, r: 120, b: 40, l: 180},
+  xaxis: {title: 'Median MAE (pp)', gridcolor: '#e5e7eb', zeroline: true},
+  yaxis: {title: '', automargin: true},
+  bargap: 0.3,
 }, {responsive: true});
 </script>
 
