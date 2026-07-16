@@ -181,9 +181,16 @@ def main():
     # Summary
     summary = {
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
-        "benchmark_mode": "branded_food_simulation",  # FNDDS recipe with branded-food conditions
+        "benchmark_mode": "fndds_workflow_code_assisted",  # FNDDS code-assisted mapping
         "mapping_mode": "code_assisted",  # Uses FNDDS ingredient code in 4-level mapper (L1)
         "observation_mode": "fndds_final_nutrients_pm10pct",  # FNDDS final product ±10%
+        "benchmark_note": (
+            "This benchmark simulates branded-food conditions by using only "
+            "Nutrition Facts nutrients and ingredient names as solver input. "
+            "Ingredient-profle mapping is code-assisted (FNDDS 4-level mapper), "
+            "which is more precise than pure name-based search. "
+            "A future 'name_only' benchmark will use strict text-based mapping."
+        ),
         "total_in_validation_set": len(val_ids),
         "nfs_skipped": len(skipped_nfs),
         "attempted": len(usable),

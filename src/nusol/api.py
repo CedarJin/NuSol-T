@@ -142,10 +142,11 @@ def solve(yaml_path: str | Path) -> dict[str, Any]:
         "status": "optimal" if success else "error",
         "problem_id": problem.problem_id,
         "fractions": fractions,
-        "bounds": {
-            ing: list(bounds_dict.get(ing, (0.0, 1.0)))
-            for ing in problem.ingredient_ids
-        } if bounds_dict else {},
+        "bounds": _format_bounds(
+            bounds_dict,
+            problem.ingredient_ids,
+            solver_spec.bounds,
+        ),
         "diagnostics": diagnostics,
         "constraint_diagnostics": constraint_diagnostics,
         "manifest": _build_manifest(
@@ -319,6 +320,35 @@ def _compute_diagnostics(
         })
 
     return result
+
+
+def _format_bounds(
+    bounds_dict: dict[str, tuple[float, float]],
+    ingredient_ids: list[str],
+    bounds_spec,
+) -> dict[str, Any]:
+    """Format bounds output with explicit type information.
+
+    Distinguishes ``hard_feasible_bounds`` (only hard constraints) from
+    ``slack_budget_bounds`` (soft constraints tightened by budget).
+    """
+    if bounds_dict is None or bounds_spec is None:
+        return {}
+
+    region = getattr(bounds_spec, "feasible_region", "hard_constraints_only")
+    if region == "explicit_slack_budget":
+        bounds_type = "slack_budget_bounds"
+    else:
+        bounds_type = "hard_feasible_bounds"
+
+    return {
+        "type": bounds_type,
+        "feasible_region": region,
+        "values": {
+            ing: list(bounds_dict.get(ing, (0.0, 1.0)))
+            for ing in ingredient_ids
+        },
+    }
 
 
 def _get_git_commit(path: str) -> str | None:

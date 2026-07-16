@@ -271,6 +271,7 @@ def export_recipe(fdc_id: int, fndds, sr, output_dir: Path) -> dict | None:
             "nutrient": cid,
             "unit": unit,
             "interval": [round(label_val * 0.9, 3), round(label_val * 1.1, 3)],
+            "source": "fndds_workflow_pm10pct",  # FNDDS final product ±10%
         })
 
     doc = {

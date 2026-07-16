@@ -116,6 +116,9 @@ class NutrientObservation(BaseModel, extra="forbid"):
     less_than: float | None = Field(
         None, description="Upper bound for 'less than X' declarations",
     )
+    source: str | None = Field(
+        None, description="Provenance of the observation interval (e.g. fndds_workflow_pm10pct)",
+    )
 
     @model_validator(mode="after")
     def exactly_one_mode(self) -> NutrientObservation:

@@ -197,8 +197,9 @@ def solve(
             typer.echo("  fractions:")
             for ing, frac in sorted(result["fractions"].items(),
                                      key=lambda x: x[1], reverse=True):
-                if ing in result["bounds"]:
-                    lo, hi = result["bounds"][ing]
+                bounds_vals = result.get("bounds", {}).get("values", {})
+                if ing in bounds_vals:
+                    lo, hi = bounds_vals[ing]
                     typer.echo(
                         f"    {ing:20s} {frac:.4f}  [{lo:.4f}, {hi:.4f}]"
                     )

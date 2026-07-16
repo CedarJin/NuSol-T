@@ -69,9 +69,10 @@ class TestSolveAPI:
         import nusol
 
         result = nusol.solve(str(bread_yaml))
+        assert result["bounds"]["type"] == "hard_feasible_bounds"
         for ing in ["flour", "sugar"]:
-            assert ing in result["bounds"]
-            lo, hi = result["bounds"][ing]
+            assert ing in result["bounds"]["values"]
+            lo, hi = result["bounds"]["values"][ing]
             assert lo <= hi
 
     def test_solve_predictions_within_intervals(self, bread_yaml: Path) -> None:
@@ -119,8 +120,8 @@ class TestSolveAPI:
 
         assert result["success"] is True
         assert result["fractions"] == {}
-        assert result["bounds"]["flour"] == pytest.approx([0.3, 0.7])
-        assert result["bounds"]["sugar"] == pytest.approx([0.3, 0.7])
+        assert result["bounds"]["values"]["flour"] == pytest.approx([0.3, 0.7])
+        assert result["bounds"]["values"]["sugar"] == pytest.approx([0.3, 0.7])
 
     def test_explicit_slack_budget_limits_bounds(self, bread_yaml: Path) -> None:
         import nusol
@@ -142,7 +143,8 @@ class TestSolveAPI:
 
         expected_flour = (387.0 - 375.0) / (387.0 - 364.0)
         assert result["success"] is True
-        assert result["bounds"]["flour"] == pytest.approx(
+        assert result["bounds"]["type"] == "slack_budget_bounds"
+        assert result["bounds"]["values"]["flour"] == pytest.approx(
             [expected_flour, expected_flour], abs=1e-7,
         )
         assert result["manifest"]["solver"]["bounds_feasible_region"] == \
