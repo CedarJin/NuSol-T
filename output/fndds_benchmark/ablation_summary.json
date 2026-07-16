@@ -1,0 +1,46 @@
+{
+  "G0_mass_only": {
+    "total": 197,
+    "success": 189,
+    "failed": 8,
+    "success_rate": 95.9,
+    "mae_mean": 3.04,
+    "mae_median": 2.53,
+    "mae_p25": 1.16,
+    "mae_p75": 3.9,
+    "time_s": 16.5
+  },
+  "G1_plus_order": {
+    "total": 197,
+    "success": 188,
+    "failed": 9,
+    "success_rate": 95.4,
+    "mae_mean": 2.71,
+    "mae_median": 2.1,
+    "mae_p25": 1.12,
+    "mae_p75": 3.22,
+    "time_s": 16.1
+  },
+  "G2_plus_two_pct": {
+    "total": 197,
+    "success": 187,
+    "failed": 10,
+    "success_rate": 94.9,
+    "mae_mean": 2.62,
+    "mae_median": 1.96,
+    "mae_p25": 1.07,
+    "mae_p75": 3.1,
+    "time_s": 15.6
+  },
+  "G3_full": {
+    "total": 197,
+    "success": 187,
+    "failed": 10,
+    "success_rate": 94.9,
+    "mae_mean": 2.62,
+    "mae_median": 1.96,
+    "mae_p25": 1.07,
+    "mae_p75": 3.1,
+    "time_s": 15.7
+  }
+}
