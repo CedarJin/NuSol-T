@@ -592,14 +592,14 @@ model:
 
 #### 当前问题
 
-当前 FNDDS export 会跳过 fortificant，并跳过可能由 fortification 主导的 nutrients。这对 workflow feasibility benchmark 是可以接受的，但长期会限制营养暴露估计。
+当前 FNDDS export 已经能识别 fortificant，并把它们从普通 ingredient fraction 求解中分离，输出 `fortification` diagnostics；可能由 fortification 主导的 nutrients 会被结构化记录为 skipped nutrients。这比原先只靠 skip 更可复现，但还没有实现 fortificant→nutrient contribution table 或 additive solver，因此仍不能完整解释 fortified cereal 的强化维生素/矿物质。
 
 #### Proposed fix
 
 短期：
 
-- 保留 skip 策略；
-- 在 benchmark summary 中明确记录 skipped fortificant 和 skipped nutrient；
+- 保留普通 ingredient solve 与 fortificant layer 分离的策略；✅
+- 在 benchmark summary 中明确记录 skipped fortificant 和 skipped nutrient；✅
 - 不把相关 nutrient 纳入 MAE 解释。
 
 中期：

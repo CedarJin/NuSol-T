@@ -16,11 +16,17 @@ Usage::
 from __future__ import annotations
 
 import json
-import re
 from pathlib import Path
 from typing import Any
 
 import yaml
+
+from nusol.data.fortification import (
+    build_fortification_ingredient,
+    classify_export_failure,
+    fortification_diagnostics,
+    is_fortificant,
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 FNDDS_PATH = (
@@ -54,25 +60,11 @@ FDA_LABEL: dict[str, tuple[str, str]] = {
 
 FNDDS_ALIASES = {"Total Sugars, Total": "Total Sugars", "Vitamin D": "Vitamin D (D2 + D3)"}
 
-FORTIFICANT_RE = re.compile(
-    r"(vitamin\s+\w\S*\s+as\s+ingredient|calcium\s+as\s+ingredient"
-    r"|iron\s+as\s+ingredient|zinc\s+as\s+ingredient"
-    r"|potassium\s+as\s+ingredient|folic\s+acid\s+as\s+ingredient)",
-    re.IGNORECASE,
-)
-
-# Nutrients that are 0 in all natural ingredients (only from fortification)
-FORTIFICATION_ONLY = {"Vitamin D (D2 + D3)"}
-
 KJ_KCAL = 4.184
 
 
 def _resolve_name(fndds_name: str) -> str:
     return FNDDS_ALIASES.get(fndds_name, fndds_name)
-
-
-def _is_fortificant(name: str) -> bool:
-    return bool(FORTIFICANT_RE.search(name))
 
 
 def _correct_energy(
@@ -96,18 +88,47 @@ def _correct_energy(
     return amount
 
 
+def _write_export_failure(
+    fdc_id: int,
+    recipe: dict[str, Any],
+    output_dir: Path,
+    failure_category: str,
+    warnings: list[str],
+    fortificants,
+    skipped_nutrients: list[dict[str, Any]],
+) -> Path:
+    """Write a reproducible export failure artifact."""
+    path = output_dir / f"recipe_{fdc_id}_export_failure.json"
+    payload = {
+        "fdc_id": fdc_id,
+        "description": recipe["description"],
+        "status": "export_failed",
+        "failure_category": failure_category,
+        "warnings": warnings,
+        "fortification": fortification_diagnostics(
+            fortificants,
+            skipped_nutrients,
+            failure_category=failure_category,
+        ),
+    }
+    path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+    return path
+
+
 def export_recipe(fdc_id: int, fndds, sr, output_dir: Path) -> dict | None:
     recipe = fndds.get_recipe(fdc_id)
     if recipe is None:
         return None
 
     warnings: list[str] = []
+    skipped_nutrients: list[dict[str, Any]] = []
 
     # ── Step 1: Ingredients (simulate reading the label) ─────────────────
     all_ings = recipe["ingredients"]
     total_wt = sum(ing.get("weight_g", 0) for ing in all_ings)
 
     kept = []
+    fortificants = []
     for ing in all_ings:
         name = ing["description"]
         wt = ing.get("weight_g", 0)
@@ -115,8 +136,13 @@ def export_recipe(fdc_id: int, fndds, sr, output_dir: Path) -> dict | None:
         if wt <= 0:
             warnings.append(f"Skip zero-weight: '{name}'")
             continue
-        if _is_fortificant(name):
-            warnings.append(f"Skip fortificant (no nutrient data): '{name}'")
+        if is_fortificant(code, name):
+            fortificant = build_fortification_ingredient(ing, total_wt)
+            fortificants.append(fortificant)
+            warnings.append(
+                "Move fortificant out of ordinary solve ingredients: "
+                f"'{name}'"
+            )
             continue
         frac = wt / total_wt if total_wt > 0 else 0.0
         kept.append({
@@ -127,6 +153,19 @@ def export_recipe(fdc_id: int, fndds, sr, output_dir: Path) -> dict | None:
         })
 
     if len(kept) < 2:
+        failure_category = classify_export_failure(
+            n_regular_ingredients=len(kept),
+            n_fortificants=len(fortificants),
+        )
+        _write_export_failure(
+            fdc_id,
+            recipe,
+            output_dir,
+            failure_category,
+            warnings,
+            fortificants,
+            skipped_nutrients,
+        )
         return None
 
     # FDA order: main ingredients descending by weight, then ≤2% group
@@ -204,8 +243,6 @@ def export_recipe(fdc_id: int, fndds, sr, output_dir: Path) -> dict | None:
 
     # ── Step 4: Select observable nutrients ──────────────────────────────
     obs_nutrients: list[tuple[str, str, str]] = []  # [(fda_name, canonical_id, unit)]
-    skipped: list[str] = []
-
     for fda_name, (canon_id, unit) in FDA_LABEL.items():
         rname = _resolve_name(fda_name)
         label_val = final_nut_map.get(rname)
@@ -214,7 +251,10 @@ def export_recipe(fdc_id: int, fndds, sr, output_dir: Path) -> dict | None:
 
         # All ingredients must have data
         if any(ing_data[iid].get(rname) is None for iid in [i["id"] for i in ordered]):
-            skipped.append(canon_id)
+            skipped_nutrients.append({
+                "nutrient": canon_id,
+                "reason": "incomplete_ingredient_profile",
+            })
             continue
 
         # Fortification check: skip if label value can't be explained by
@@ -230,13 +270,32 @@ def export_recipe(fdc_id: int, fndds, sr, output_dir: Path) -> dict | None:
                 f"Skip '{canon_id}': max ingredient value {max_ing_val:.1f} "
                 f"< 50% of label {label_val:.1f} (likely fortified)"
             )
-            skipped.append(canon_id)
+            skipped_nutrients.append({
+                "nutrient": canon_id,
+                "reason": "fortification_dominated",
+                "label_value": label_val,
+                "max_base_ingredient_value": max_ing_val,
+            })
             continue
 
         obs_nutrients.append((rname, canon_id, unit))
 
     if not obs_nutrients:
         warnings.append("No observable nutrients — all skipped or incomplete")
+        failure_category = classify_export_failure(
+            n_regular_ingredients=len(kept),
+            n_fortificants=len(fortificants),
+            no_observable_nutrients=True,
+        )
+        _write_export_failure(
+            fdc_id,
+            recipe,
+            output_dir,
+            failure_category,
+            warnings,
+            fortificants,
+            skipped_nutrients,
+        )
         return None
 
     # ── Step 5: Build YAML ──────────────────────────────────────────────
@@ -277,14 +336,26 @@ def export_recipe(fdc_id: int, fndds, sr, output_dir: Path) -> dict | None:
     doc = {
         "schema_version": "1.0-draft",
         "problem_id": f"fndds_{fdc_id}",
-        "basis": {"ingredient_mass": "input_fraction", "nutrient_amount": "per_100g_finished_product"},
+        "basis": {
+            "ingredient_mass": "input_fraction",
+            "nutrient_amount": "per_100g_finished_product",
+        },
         "ingredients": [
-            {"id": ing["id"], "name": ing["name"],
-             "declaration_position": i,
-             "declaration_group": "two_percent_or_less" if ing["is_2pct"] else "main"}
+            {
+                "id": ing["id"],
+                "name": ing["name"],
+                "declaration_position": i,
+                "declaration_group": (
+                    "two_percent_or_less" if ing["is_2pct"] else "main"
+                ),
+            }
             for i, ing in enumerate(ordered)
         ],
-        "composition": {"source": "inline", "nutrients": yaml_nutrients, "values": yaml_values},
+        "composition": {
+            "source": "inline",
+            "nutrients": yaml_nutrients,
+            "values": yaml_values,
+        },
         "observations": yaml_obs,
         "model": {"type": "linear_mixing"},
         "variables": {"ingredient_fractions": {"lower": 0.0, "upper": 1.0}},
@@ -302,7 +373,12 @@ def export_recipe(fdc_id: int, fndds, sr, output_dir: Path) -> dict | None:
                 "mode": "hard",
                 "config": {"source": "declaration_group"},
             },
-            {"id": "label_fit", "type": "nutrient_interval", "mode": "soft", "weight": 10.0},
+            {
+                "id": "label_fit",
+                "type": "nutrient_interval",
+                "mode": "soft",
+                "weight": 10.0,
+            },
         ],
         "solver": {"point": {"backend": "scipy_slsqp"}, "bounds": {"backend": "highs_lp"}},
         "output": {"path": f"output/fndds_{fdc_id}_result.json"},
@@ -316,9 +392,20 @@ def export_recipe(fdc_id: int, fndds, sr, output_dir: Path) -> dict | None:
 
     # Truth
     truth = {
-        "fdc_id": fdc_id, "description": recipe["description"],
-        "ingredients": [{"id": ing["id"], "name": ing["name"], "true_fraction": ing["true_frac"]}
-                        for ing in ordered],
+        "fdc_id": fdc_id,
+        "description": recipe["description"],
+        "ingredients": [
+            {
+                "id": ing["id"],
+                "name": ing["name"],
+                "true_fraction": ing["true_frac"],
+            }
+            for ing in ordered
+        ],
+        "fortification": fortification_diagnostics(
+            fortificants,
+            skipped_nutrients,
+        ),
         "warnings": warnings,
     }
     truth_path = output_dir / f"recipe_{fdc_id}_truth.json"
@@ -327,7 +414,10 @@ def export_recipe(fdc_id: int, fndds, sr, output_dir: Path) -> dict | None:
     return {
         "yaml_path": str(yaml_path), "truth_path": str(truth_path),
         "n_ingredients": len(ordered), "n_observations": len(obs_nutrients),
-        "skipped_nutrients": skipped, "warnings": warnings,
+        "skipped_nutrients": [item["nutrient"] for item in skipped_nutrients],
+        "skipped_nutrient_details": skipped_nutrients,
+        "fortification": fortification_diagnostics(fortificants, skipped_nutrients),
+        "warnings": warnings,
     }
 
 
@@ -338,8 +428,10 @@ def main():
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     print("Loading databases...")
-    fndds = FNDDSDataAdapter(); fndds.load(str(FNDDS_PATH))
-    sr = SRLegacyDataAdapter(); sr.load(str(SR_PATH))
+    fndds = FNDDSDataAdapter()
+    fndds.load(str(FNDDS_PATH))
+    sr = SRLegacyDataAdapter()
+    sr.load(str(SR_PATH))
     print(f"  FNDDS: {len(fndds)} foods, SR Legacy: {len(sr)} foods\n")
 
     test_ids = [2705394, 2705384, 2705412]
@@ -349,14 +441,17 @@ def main():
         print(f"FDC {fdc_id} — {recipe['description']}")
         result = export_recipe(fdc_id, fndds, sr, OUTPUT_DIR)
         if result:
-            print(f"  Ingredients: {result['n_ingredients']}, Observations: {result['n_observations']}")
+            print(
+                f"  Ingredients: {result['n_ingredients']}, "
+                f"Observations: {result['n_observations']}"
+            )
             if result["skipped_nutrients"]:
                 print(f"  Skipped: {result['skipped_nutrients']}")
             for w in result["warnings"]:
                 print(f"  ⚠ {w}")
             print(f"  → {Path(result['yaml_path']).name}")
         else:
-            print(f"  FAILED")
+            print("  FAILED")
         print()
 
 

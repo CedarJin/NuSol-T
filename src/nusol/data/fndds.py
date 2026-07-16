@@ -14,6 +14,7 @@ from nusol.core.schema import (
     ProductObservation,
 )
 from nusol.data.base import DataAdapterBase
+from nusol.data.fortification import FORTIFICANT_CODES
 
 
 class FNDDSDataAdapter(DataAdapterBase):
@@ -145,16 +146,7 @@ class FNDDSDataAdapter(DataAdapterBase):
         }
 
     # Fortificant ingredient codes (999xxx series)
-    FORTIFICANT_CODES: set[str] = {
-        "999328",  # Vitamin D as ingredient
-        "999301",  # Calcium as ingredient
-        "999303",  # Iron as ingredient
-        "999401",  # Vitamin C as ingredient
-        "999431",  # Folic acid as ingredient
-        "999418",  # Vitamin B-12 as ingredient
-        "999001",  # Vitamin B composite in cereals
-        "999291",  # Fiber, total dietary, as ingredient
-    }
+    FORTIFICANT_CODES: frozenset[str] = FORTIFICANT_CODES
 
     def map_ingredient_to_profile(
         self,
@@ -259,7 +251,9 @@ class FNDDSDataAdapter(DataAdapterBase):
         for ing in ingredients:
             code_str = str(ing.get("ingredient_code", ""))
             w = ing.get("weight_g", 0)
-            if code_str in self.FORTIFICANT_CODES and (w < 0.01 or (total_weight > 0 and w / total_weight < 0.01)):
+            if code_str in self.FORTIFICANT_CODES and (
+                w < 0.01 or (total_weight > 0 and w / total_weight < 0.01)
+            ):
                 skipped_fort.append(ing["description"])
                 continue
             filtered.append(ing)

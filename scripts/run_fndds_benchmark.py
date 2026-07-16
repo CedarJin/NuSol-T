@@ -17,10 +17,11 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from nusol.data.fndds import FNDDSDataAdapter
-from nusol.data.sr_legacy import SRLegacyDataAdapter
-from nusol.api import solve
-from scripts.export_fndds_recipes import export_recipe
+from scripts.export_fndds_recipes import export_recipe  # noqa: E402
+
+from nusol.api import solve  # noqa: E402
+from nusol.data.fndds import FNDDSDataAdapter  # noqa: E402
+from nusol.data.sr_legacy import SRLegacyDataAdapter  # noqa: E402
 
 FNDDS_PATH = (
     PROJECT_ROOT / ".." / "db"
@@ -43,18 +44,32 @@ NFS_RE = re.compile(r'\bNFS\b', re.IGNORECASE)
 def main():
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("--limit", type=int, default=0, help="Limit number of recipes (0=all)")
-    parser.add_argument("--skip-export", action="store_true", help="Skip export, solve existing YAMLs")
-    parser.add_argument("--full", action="store_true",
-                        help="Run on ALL FNDDS multi-ingredient non-NFS recipes (~3734)")
+    parser.add_argument(
+        "--limit",
+        type=int,
+        default=0,
+        help="Limit number of recipes (0=all)",
+    )
+    parser.add_argument(
+        "--skip-export",
+        action="store_true",
+        help="Skip export, solve existing YAMLs",
+    )
+    parser.add_argument(
+        "--full",
+        action="store_true",
+        help="Run on ALL FNDDS multi-ingredient non-NFS recipes (~3734)",
+    )
     args = parser.parse_args()
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     # Load databases
     print("Loading databases...")
-    fndds = FNDDSDataAdapter(); fndds.load(str(FNDDS_PATH))
-    sr = SRLegacyDataAdapter(); sr.load(str(SR_PATH))
+    fndds = FNDDSDataAdapter()
+    fndds.load(str(FNDDS_PATH))
+    sr = SRLegacyDataAdapter()
+    sr.load(str(SR_PATH))
     print(f"  FNDDS: {len(fndds)} foods, SR Legacy: {len(sr)} foods")
 
     # Determine recipe IDs to test
@@ -71,7 +86,7 @@ def main():
                 skipped_nfs.append(fdc_id)
                 continue
             usable.append(fdc_id)
-        print(f"  Mode: FULL — all FNDDS multi-ingredient non-NFS")
+        print("  Mode: FULL — all FNDDS multi-ingredient non-NFS")
     else:
         # Run on validation set only
         with open(VALIDATION_PATH) as f:
@@ -90,7 +105,7 @@ def main():
                 skipped_nfs.append(fdc_id)
                 continue
             usable.append(fdc_id)
-        print(f"  Mode: validation set (200 sampled)")
+        print("  Mode: validation set (200 sampled)")
 
     print(f"  NFS skipped: {len(skipped_nfs)}")
     print(f"  Usable: {len(usable)}")
@@ -114,9 +129,20 @@ def main():
         if not args.skip_export:
             export_result = export_recipe(fdc_id, fndds, sr, OUTPUT_DIR)
             if export_result is None:
-                print(f"  EXPORT FAILED")
+                print("  EXPORT FAILED")
                 n_export_fail += 1
-                results.append({"fdc_id": fdc_id, "description": desc, "status": "export_failed"})
+                failure_path = OUTPUT_DIR / f"recipe_{fdc_id}_export_failure.json"
+                failure_payload = {}
+                if failure_path.exists():
+                    with open(failure_path) as f:
+                        failure_payload = json.load(f)
+                results.append({
+                    "fdc_id": fdc_id,
+                    "description": desc,
+                    "status": "export_failed",
+                    "failure_category": failure_payload.get("failure_category"),
+                    "fortification": failure_payload.get("fortification", {}),
+                })
                 continue
             yaml_path = Path(export_result["yaml_path"])
             truth_path = Path(export_result["truth_path"])
@@ -124,6 +150,8 @@ def main():
             n_obs = export_result["n_observations"]
             n_ing = export_result["n_ingredients"]
             skipped = export_result.get("skipped_nutrients", [])
+            skipped_details = export_result.get("skipped_nutrient_details", [])
+            fortification = export_result.get("fortification", {})
         else:
             yaml_path = OUTPUT_DIR / f"recipe_{fdc_id}.yaml"
             truth_path = OUTPUT_DIR / f"recipe_{fdc_id}_truth.json"
@@ -134,6 +162,8 @@ def main():
             n_obs = "?"
             warnings = []
             skipped = []
+            skipped_details = []
+            fortification = {}
 
         # Solve
         try:
@@ -171,14 +201,23 @@ def main():
             s = fractions.get(iid, 0.0)
             e = abs(t - s)
             errors.append(e)
-            ing_details.append({"id": iid, "name": ing["name"], "true": round(t, 6), "solved": round(s, 6), "error": round(e, 6)})
+            ing_details.append({
+                "id": iid,
+                "name": ing["name"],
+                "true": round(t, 6),
+                "solved": round(s, 6),
+                "error": round(e, 6),
+            })
 
         mae = sum(errors) / len(errors) if errors else 0
         mae_list.append(mae)
         n_success += 1
         objective = result["diagnostics"]["point"].get("objective_value", None)
 
-        print(f"  OK — MAE={mae:.4f} ({mae*100:.2f}pp) | obj={objective:.2e} | {n_ing}ingr × {n_obs}obs")
+        print(
+            f"  OK — MAE={mae:.4f} ({mae * 100:.2f}pp) | "
+            f"obj={objective:.2e} | {n_ing}ingr × {n_obs}obs"
+        )
 
         results.append({
             "fdc_id": fdc_id,
@@ -191,6 +230,8 @@ def main():
             "n_observations": n_obs,
             "warnings": warnings,
             "skipped_nutrients": skipped,
+            "skipped_nutrient_details": skipped_details,
+            "fortification": fortification,
             "ingredients": ing_details,
             "solve_time_s": result["diagnostics"]["total_time_s"],
         })
@@ -232,13 +273,18 @@ def main():
 
     # Print final summary
     print(f"\n{'='*60}")
-    print(f"BENCHMARK COMPLETE")
+    print("BENCHMARK COMPLETE")
     print(f"  Attempted: {len(usable)}")
     print(f"  Export failed: {n_export_fail}")
     print(f"  Solve failed: {n_solve_fail}")
-    print(f"  Success: {n_success} ({n_success/len(usable)*100:.1f}%)" if usable else "  Success: 0")
+    print(
+        f"  Success: {n_success} ({n_success / len(usable) * 100:.1f}%)"
+        if usable
+        else "  Success: 0"
+    )
     if mae_list:
-        print(f"  MAE mean:   {sum(mae_list)/len(mae_list):.4f} ({sum(mae_list)/len(mae_list)*100:.2f} pp)")
+        mae_mean = sum(mae_list) / len(mae_list)
+        print(f"  MAE mean:   {mae_mean:.4f} ({mae_mean * 100:.2f} pp)")
         print(f"  MAE median: {sorted(mae_list)[len(mae_list)//2]:.4f}")
         print(f"  MAE range:  [{min(mae_list):.4f}, {max(mae_list):.4f}]")
     print(f"  Total time: {t_total:.1f}s")
