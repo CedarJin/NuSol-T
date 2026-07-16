@@ -90,7 +90,10 @@ def validate_problem(problem: IngredientProblem) -> None:
     validate_ingredient_ids_match_composition(ingredient_ids, problem.composition)
     validate_matrix(problem.composition)
 
-    all_obs_ids = list(problem.observation_intervals.keys()) + list(problem.observation_exact.keys())
+    all_obs_ids = (
+        list(problem.observation_intervals.keys())
+        + list(problem.observation_exact.keys())
+    )
     validate_observation_nutrients_exist(all_obs_ids, problem.composition)
     validate_no_missing_in_observations(all_obs_ids, problem.composition)
     validate_intervals(problem.observation_intervals)

@@ -10,7 +10,7 @@ NuSol-T 已完成 YAML solver framework 的核心重构。当前系统可以用 
 
 | 项目 | 结果 |
 |---|---:|
-| Pytest | 252 passed |
+| Pytest | 259 passed |
 | FNDDS benchmark | 197 个多配料配方 |
 | Solve 成功 | 189 个 |
 | 成功率 | 95.9% |
@@ -26,6 +26,7 @@ NuSol-T 已完成 YAML solver framework 的核心重构。当前系统可以用 
 6. CSV resource checksum、ingredient 顺序对齐、resolved YAML 和 manifest 记录。
 7. FNDDS / SR Legacy / Foundation / Branded 数据适配器基础模块。
 8. FNDDS branded-food 条件模拟 benchmark。
+9. Level 2 prior 初版与 prior contribution diagnostics。
 
 ## 当前能力边界
 
@@ -50,7 +51,7 @@ NuSol-T 已完成 YAML solver framework 的核心重构。当前系统可以用 
 
 1. `IngredientParser`：解析真实包装食品 ingredient list。
 2. `IngredientMapper`：将标签短名映射到 USDA 标准原料记录。
-3. `PriorSpec` / prior registry：把食品科学先验作为一等建模对象。
+3. Prior calibration / ablation / sensitivity：验证食品科学先验的稳定性和贡献。
 4. G0-G7 消融实验：基于当前新架构重新跑可复现 benchmark。
 5. TrustReport：在完成先验校准和外部验证后再定义可信等级。
 

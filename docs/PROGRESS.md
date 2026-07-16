@@ -17,7 +17,7 @@
 
 | 项目 | 当前结果 |
 |---|---:|
-| Pytest | 252 passed |
+| Pytest | 259 passed |
 | FNDDS 多配料配方 | 197 |
 | Solve 成功 | 189 / 197 |
 | Solve 成功率 | 95.9% |
@@ -41,7 +41,7 @@
 | 6 | 自定义约束插件机制 | ✅ | 基础机制已完成 |
 | 7 | USDA 数据适配器迁移 | ✅ | FNDDS / SR Legacy / Foundation / Branded adapter 基础可用 |
 | 8 | Metrics 与 benchmark 修正 | ✅ | 当前 FNDDS benchmark 已记录在 `CURRENT_STATUS.md` |
-| 9 | 文档对齐与高级食品科学接口 | 🔄 | 文档对齐进行中；Prior / TrustReport / Bayesian 后端仍属后续扩展 |
+| 9 | 文档对齐与高级食品科学接口 | 🔄 | Level 2 Prior 初版已完成；TrustReport / Bayesian 后端仍属后续扩展 |
 
 ## 已打通的核心能力
 
@@ -67,7 +67,11 @@
 
 6. **配置错误显式失败**
 
-   尚未实现的 prior、未注册约束、能力不匹配等情况必须显式报错，不能静默忽略。
+   未注册 prior、未注册约束、能力不匹配等情况必须显式报错，不能静默忽略。
+
+7. **Level 2 Prior 初版**
+
+   当前支持 `fraction_interval_prior`、`group_total_prior`、`recipe_center_prior`、`anti_extreme_prior` 和 `ratio_prior`，并输出 `prior_contributions`。
 
 ## 仍未完成的关键能力
 
@@ -75,7 +79,7 @@
 |---|---|---|
 | Branded Food label parser | 未完成 | 需要把真实标签文本解析为结构化 IngredientTree |
 | Ingredient mapper | 未完成 | 真实品牌食品短名到 USDA 标准原料的映射仍是核心挑战 |
-| 食品科学 prior registry | 未完成 | 当前 prior 不应静默生效；后续需要 typed PriorSpec 和 prior compiler |
+| 食品科学 prior registry | 初版完成 | 已支持 5 类 Level 2 priors；后续需要 calibration 和 sensitivity |
 | Calibrated priors | 未完成 | 需要基于独立数据校准 prior weight、分布和适用条件 |
 | Bayesian / hierarchical backend | 未完成 | 属于 Level 4 扩展，应复用 YAML / domain / provenance |
 | TrustReport / TrustGrade | 未完成 | 在完成校准和外部验证前，不应声称科学可信等级 |
@@ -97,5 +101,5 @@
 1. 完成 Phase 9 文档对齐，避免旧文档继续描述已废弃架构。
 2. 实现 Branded Food `IngredientParser`。
 3. 实现真实标签短名到 USDA 原料记录的 `IngredientMapper`。
-4. 设计 typed `PriorSpec`、prior registry 和 Level 2 食品科学先验。
+4. 做 Level 2 priors 的 calibration、ablation 和 sensitivity。
 5. 重跑 G0-G7 消融实验，并输出可复现实验产物。

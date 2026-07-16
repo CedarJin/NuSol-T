@@ -84,6 +84,13 @@ class TestSolveAPI:
         # Compute predictions
         energy = 364.0 * x.get("flour", 0) + 387.0 * x.get("sugar", 0)
         assert 370 <= energy <= 380, f"Energy {energy} outside [370, 380]"
+        energy_diag = next(
+            item for item in result["observation_diagnostics"]
+            if item["nutrient"] == "energy_kcal"
+        )
+        assert energy_diag["predicted"] == pytest.approx(energy, abs=1e-6)
+        assert energy_diag["lower"] == 370
+        assert energy_diag["upper"] == 380
 
     def test_solve_returns_manifest(self, bread_yaml: Path) -> None:
         import nusol

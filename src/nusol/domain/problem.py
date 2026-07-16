@@ -47,6 +47,14 @@ class IngredientProblem(BaseModel):
         default_factory=tuple,
         description="IDs of enabled priors",
     )
+    prior_types: dict[str, str] = Field(
+        default_factory=dict,
+        description="Mapping from prior ID → type name",
+    )
+    prior_configs: dict[str, dict] = Field(
+        default_factory=dict,
+        description="Mapping from prior ID → configuration dict",
+    )
     variable_lower: float = 0.0
     variable_upper: float = 1.0
 

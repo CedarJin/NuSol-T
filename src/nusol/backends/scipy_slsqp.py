@@ -28,7 +28,12 @@ class ScipySLSQPBackend(PointBackend):
     """
 
     name = "scipy_slsqp"
-    capabilities = frozenset({"continuous", "linear_constraints", "soft_constraints"})
+    capabilities = frozenset({
+        "continuous",
+        "linear_constraints",
+        "soft_constraints",
+        "quadratic_objective",
+    })
 
     def __init__(self, options: dict[str, Any] | None = None) -> None:
         self.options = {
@@ -54,7 +59,7 @@ class ScipySLSQPBackend(PointBackend):
         # ── Separate constraints ──
         # Hard constraints go to SciPy directly
         # Soft interval constraints → slack variables
-        A_hard = []
+        a_hard = []
         lb_hard = []
         ub_hard = []
         soft_intervals: list[
@@ -69,7 +74,7 @@ class ScipySLSQPBackend(PointBackend):
                     f"Constraint '{lc.id}' has wrong shape {coeff.shape}"
                 )
             if lc.mode == "hard":
-                A_hard.append(coeff)
+                a_hard.append(coeff)
                 lb_hard.append(lc.lower if lc.lower is not None else -1e10)
                 ub_hard.append(lc.upper if lc.upper is not None else 1e10)
             elif lc.mode == "soft":
@@ -89,10 +94,10 @@ class ScipySLSQPBackend(PointBackend):
 
         # ── Feasibility: check if there's a point satisfying all hard constraints ──
         # Use a single SLSQP solve with a zero objective to check feasibility
-        n_hard = len(A_hard)
+        n_hard = len(a_hard)
 
         if n_hard > 0:
-            A_h = np.array(A_hard)
+            a_h = np.array(a_hard)
             lb_h = np.array(lb_hard)
             ub_h = np.array(ub_hard)
 
@@ -101,7 +106,7 @@ class ScipySLSQPBackend(PointBackend):
 
             scipy_cons_feas = []
             for i in range(n_hard):
-                row = A_h[i]
+                row = a_h[i]
                 lo, hi = lb_h[i], ub_h[i]
                 if abs(lo - hi) < 1e-12:
                     scipy_cons_feas.append({
@@ -152,16 +157,26 @@ class ScipySLSQPBackend(PointBackend):
         for si, (_, lo, hi, w) in enumerate(soft_intervals):
             slack_weights[si] = w
 
+        quadratic_penalties = list(problem.quadratic_penalties)
+
         def objective(x: np.ndarray) -> float:
             s = x[n:]
-            return float(np.dot(slack_weights * s, s))
+            value = float(np.dot(slack_weights * s, s))
+            x_ing = x[:n]
+            for penalty in quadratic_penalties:
+                value += penalty.weight * float(
+                    x_ing @ penalty.quadratic @ x_ing
+                    + penalty.linear @ x_ing
+                    + penalty.constant
+                )
+            return value
 
         # ── Build constraints ──
         scipy_cons = []
 
         # Hard constraints (same as feasibility)
         for i in range(n_hard):
-            row = A_hard[i]
+            row = a_hard[i]
             lo, hi = lb_hard[i], ub_hard[i]
             if abs(lo - hi) < 1e-12:
                 scipy_cons.append({
@@ -248,7 +263,7 @@ class ScipySLSQPBackend(PointBackend):
 
             # Verify hard constraint satisfaction
             for i in range(n_hard):
-                val = A_hard[i] @ x_opt
+                val = a_hard[i] @ x_opt
                 if val < lb_hard[i] - 1e-4 or val > ub_hard[i] + 1e-4:
                     # Hard constraint violated — try re-optimizing from a better start
                     for seed in range(10):
@@ -275,7 +290,7 @@ class ScipySLSQPBackend(PointBackend):
                         x_opt = np.clip(result.x[:n], variable_lower, variable_upper)
                         all_ok = True
                         for j in range(n_hard):
-                            v = A_hard[j] @ x_opt
+                            v = a_hard[j] @ x_opt
                             if v < lb_hard[j] - 1e-4 or v > ub_hard[j] + 1e-4:
                                 all_ok = False
                                 break

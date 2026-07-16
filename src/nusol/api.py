@@ -26,6 +26,7 @@ from nusol.compiler.ir import CompiledProblem
 from nusol.config.errors import ConfigError, NuSolError, UnsupportedConstraintError
 from nusol.config.resolver import ConfigResolver, yaml_to_canonical_string
 from nusol.domain.builder import build_problem
+from nusol.results.schema import SolveResult
 
 
 def solve(yaml_path: str | Path) -> dict[str, Any]:
@@ -111,9 +112,14 @@ def solve(yaml_path: str | Path) -> dict[str, Any]:
             bounds_stats = SolveStats(False, "error", str(exc))
 
     # 7. Compute per-constraint diagnostics
-    constraint_diagnostics = _compute_diagnostics(
-        compiled, fractions, bounds_dict,
+    constraint_diagnostics = _compute_diagnostics(compiled, fractions)
+    observation_diagnostics = _compute_observation_diagnostics(
+        constraint_diagnostics
     )
+    prior_contributions = [
+        item for item in constraint_diagnostics
+        if item.get("source_id") in problem.prior_ids
+    ]
 
     # 8. Build result
     t_end = time.perf_counter()
@@ -149,6 +155,8 @@ def solve(yaml_path: str | Path) -> dict[str, Any]:
         ),
         "diagnostics": diagnostics,
         "constraint_diagnostics": constraint_diagnostics,
+        "observation_diagnostics": observation_diagnostics,
+        "prior_contributions": prior_contributions,
         "manifest": _build_manifest(
             problem.problem_id, str(path), resolved_dict,
             diagnostics, fractions,
@@ -157,6 +165,13 @@ def solve(yaml_path: str | Path) -> dict[str, Any]:
             feasible_region=(
                 solver_spec.bounds.feasible_region if solver_spec.bounds else None
             ),
+            priors=[
+                {
+                    "id": prior_id,
+                    **problem.prior_configs.get(prior_id, {}),
+                }
+                for prior_id in problem.prior_ids
+            ],
         ),
     }
 
@@ -167,6 +182,52 @@ def solve(yaml_path: str | Path) -> dict[str, Any]:
         )
         result["error"] = failed.message if failed else "Configured solver did not run"
 
+    return SolveResult.model_validate(result).model_dump(mode="json", exclude_none=True)
+
+
+def _compute_observation_diagnostics(
+    constraint_diagnostics: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Group nutrient interval IR diagnostics into nutrient-level diagnostics."""
+    grouped: dict[str, dict[str, Any]] = {}
+    for item in constraint_diagnostics:
+        constraint_id = item.get("constraint_id", "")
+        if not isinstance(constraint_id, str):
+            continue
+        if constraint_id.startswith("nu_hi_"):
+            nutrient = constraint_id.removeprefix("nu_hi_")
+            entry = grouped.setdefault(nutrient, {"nutrient": nutrient})
+            entry["predicted"] = item.get("value")
+            entry["upper"] = item.get("upper")
+            entry["upper_violation"] = item.get("raw_violation", 0.0)
+            entry["source_id"] = item.get("source_id")
+        elif constraint_id.startswith("nu_lo_"):
+            nutrient = constraint_id.removeprefix("nu_lo_")
+            entry = grouped.setdefault(nutrient, {"nutrient": nutrient})
+            value = item.get("value")
+            if isinstance(value, int | float):
+                entry["predicted"] = round(-float(value), 6)
+            upper = item.get("upper")
+            if isinstance(upper, int | float):
+                entry["lower"] = round(-float(upper), 6)
+            entry["lower_violation"] = item.get("raw_violation", 0.0)
+            entry["source_id"] = item.get("source_id")
+        elif constraint_id.startswith("nu_eq_"):
+            nutrient = constraint_id.removeprefix("nu_eq_")
+            entry = grouped.setdefault(nutrient, {"nutrient": nutrient})
+            entry["predicted"] = item.get("value")
+            entry["lower"] = item.get("lower")
+            entry["upper"] = item.get("upper")
+            entry["lower_violation"] = item.get("raw_violation", 0.0)
+            entry["upper_violation"] = item.get("raw_violation", 0.0)
+            entry["source_id"] = item.get("source_id")
+
+    result = []
+    for _, entry in sorted(grouped.items()):
+        lower_violation = float(entry.get("lower_violation", 0.0) or 0.0)
+        upper_violation = float(entry.get("upper_violation", 0.0) or 0.0)
+        entry["raw_violation"] = round(max(lower_violation, upper_violation), 6)
+        result.append(entry)
     return result
 
 
@@ -178,6 +239,7 @@ def _build_manifest(
     fractions: dict[str, float],
     resources: list[dict[str, str]],
     feasible_region: str | None,
+    priors: list[dict[str, Any]],
 ) -> dict[str, Any]:
     """Build run manifest with reproducibility information."""
     now = datetime.now(UTC)
@@ -213,6 +275,7 @@ def _build_manifest(
             "bounds": diagnostics.get("bounds", {}),
             "bounds_feasible_region": feasible_region,
         },
+        "priors": priors,
     }
     return manifest
 
@@ -274,7 +337,6 @@ def _problem_for_bounds(
 def _compute_diagnostics(
     compiled: CompiledProblem,
     fractions: dict[str, float],
-    bounds: dict[str, tuple[float, float]],
 ) -> list[dict[str, Any]]:
     """Compute per-constraint diagnostics from solved fractions.
 
@@ -287,7 +349,7 @@ def _compute_diagnostics(
     if not x:
         return []
 
-    result = []
+    result: list[dict[str, Any]] = []
     for lc in compiled.linear_constraints:
         coeff = lc.coefficients
         if coeff.shape[0] != n:
@@ -297,12 +359,14 @@ def _compute_diagnostics(
         lower = lc.lower
         upper = lc.upper
         slack = 0.0
+        raw_violation = 0.0
 
+        if lower is not None and value < lower:
+            raw_violation = max(raw_violation, lower - value)
+        if upper is not None and value > upper:
+            raw_violation = max(raw_violation, value - upper)
         if lc.mode == "soft":
-            if lower is not None and value < lower:
-                slack = max(slack, lower - value)
-            if upper is not None and value > upper:
-                slack = max(slack, value - upper)
+            slack = raw_violation
 
         weighted_penalty = lc.weight * slack * slack if lc.mode == "soft" else 0.0
 
@@ -315,7 +379,30 @@ def _compute_diagnostics(
             "value": round(value, 6),
             "lower": lower,
             "upper": upper,
+            "raw_violation": round(raw_violation, 6),
             "slack": round(slack, 6),
+            "weighted_penalty": round(weighted_penalty, 6),
+        })
+
+    x_arr = np.array(x[:n])
+    for penalty in compiled.quadratic_penalties:
+        value = float(
+            x_arr @ penalty.quadratic @ x_arr
+            + penalty.linear @ x_arr
+            + penalty.constant
+        )
+        weighted_penalty = penalty.weight * value
+        result.append({
+            "constraint_id": penalty.id,
+            "source_id": penalty.source_id,
+            "type": "quadratic_penalty",
+            "mode": "soft",
+            "weight": penalty.weight,
+            "value": round(value, 6),
+            "lower": 0.0,
+            "upper": 0.0,
+            "raw_violation": round(max(0.0, value), 6),
+            "slack": round(max(0.0, value), 6),
             "weighted_penalty": round(weighted_penalty, 6),
         })
 

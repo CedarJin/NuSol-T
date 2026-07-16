@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from nusol.config.errors import ConfigError
 from nusol.config.schema import (
     InlineCompositionSpec,
     SolveDocument,
@@ -29,17 +28,7 @@ def build_problem(
 
     Raises:
         CompileError: If domain-level validation fails.
-        ConfigError: If enabled priors are present (not yet supported).
     """
-    # Prior support check (R1.1): priors are not yet implemented
-    enabled_priors = [p.id for p in doc.priors if p.enabled]
-    if enabled_priors:
-        raise ConfigError(
-            f"Priors are not yet supported by the compiler. "
-            f"Enabled priors: {enabled_priors}. "
-            "Set enabled: false or remove them from the YAML document."
-        )
-
     # 1. Build ingredients
     ingredients = tuple(
         Ingredient(
@@ -107,7 +96,18 @@ def build_problem(
         }
         for c in enabled_constraints
     }
-    prior_ids = tuple(p.id for p in doc.priors if p.enabled)
+    enabled_priors = [p for p in doc.priors if p.enabled]
+    prior_ids = tuple(p.id for p in enabled_priors)
+    prior_types = {p.id: p.type for p in enabled_priors}
+    prior_configs = {
+        p.id: {
+            "type": p.type,
+            "weight": p.weight,
+            "config": p.config,
+            "evidence": p.evidence.model_dump(mode="json"),
+        }
+        for p in enabled_priors
+    }
 
     # 5. Assemble problem
     problem = IngredientProblem(
@@ -121,6 +121,8 @@ def build_problem(
         constraint_types=constraint_types,
         constraint_configs=constraint_configs,
         prior_ids=prior_ids,
+        prior_types=prior_types,
+        prior_configs=prior_configs,
         variable_lower=doc.variables.ingredient_fractions.lower,
         variable_upper=doc.variables.ingredient_fractions.upper,
     )

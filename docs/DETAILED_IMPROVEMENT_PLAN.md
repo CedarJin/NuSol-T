@@ -5,6 +5,36 @@
 > 状态：建议文档，不代表已实现功能  
 > 最新项目状态参考：`docs/CURRENT_STATUS.md`
 
+## 0. 当前执行状态
+
+> 更新口径：本文最初是 detailed improvement plan。后续代码已经完成其中一部分 Phase A 工作；未完成项继续作为后续任务跟踪。
+
+已完成：
+
+- `ingredient_order` 支持 declaration group；
+- `two_percent` 支持从 `declaration_group` 自动生成；
+- FNDDS export 重新启用 declaration-aware order 和 two-percent rule；
+- bounds output 区分 `hard_feasible_bounds` 与 `slack_budget_bounds`；
+- benchmark summary 记录 `benchmark_mode`、`mapping_mode` 和 `observation_mode`；
+- observation schema 支持 `source` 字段；
+- `nusol.solver` 已标记为 legacy；
+- legacy constraint profile YAML 已标记为非 solve document；
+- Level 2 prior registry / compiler 已实现第一版；
+- SLSQP backend 已支持 quadratic prior objective；
+- `solve()` result 已输出 `prior_contributions`；
+- typed `SolveResult` / `BoundsResult` 已加入并用于校验公开结果；
+- prior ablation document variant generator 已加入。
+
+部分完成：
+
+- `constraint_diagnostics` 已输出第一版，但 objective contribution reconciliation 仍需继续用于回归测试和 benchmark 诊断；
+- legacy isolation 已开始，但 report、ablation 和旧 constraint profile YAML 尚未完全隔离。
+
+未完成：
+
+- targeted scientific checks；
+- prior ablation 接入完整 benchmark runner。
+
 ## 1. 本文目的
 
 本文从营养学、食品科学和 computation 三个角度，对当前 NuSol-T 项目进行一次深度 review，并提出后续修改建议。
@@ -65,14 +95,15 @@ YAML
 
 但从项目长期 objective 看，还有三个核心缺口：
 
-1. **Prior 层尚未实现**
+1. **Prior 层已完成第一版，但仍需校准和消融**
    - 项目核心科学目标是用有证据的先验解决欠定逆问题；
-   - 当前 enabled prior 会显式失败，这是正确的工程行为；
-   - 但这也意味着 prior-driven inference 还不是当前能力。
+   - 当前已支持 Level 2 deterministic / MAP-style priors；
+   - 但 calibrated priors 和 prior sensitivity 仍是后续任务。
 
 2. **Diagnostics 不够细**
    - 当前 point solver 主要返回总 objective 和 fractions；
-   - 缺少 per-observation residual、per-constraint slack、per-prior contribution；
+   - 当前已有 per-constraint slack 和 per-prior contribution；
+   - 仍缺少更直接的 per-observation residual view；
    - 这会限制科学解释、错误定位和后续 TrustReport。
 
 3. **新旧模块仍并存**
@@ -86,7 +117,7 @@ YAML
 |---|---|---|---|
 | P0 | Constraint semantics | `ingredient_order` 不理解 `two_percent_or_less` | 优先修 |
 | P0 | Result diagnostics | 缺少 constraint / observation 级别诊断 | 优先修 |
-| P0 | Prior objective | 尚无 Level 2 prior compiler/backend 支持 | 优先设计并逐步实现 |
+| P0 | Prior objective | Level 2 prior compiler/backend 已有第一版 | 下一步做校准、消融和 sensitivity |
 | P1 | Benchmark interpretation | 当前 FNDDS benchmark 应明确是 workflow feasibility / code-assisted mapping 条件 | 文档修正，不必立即重做全部 |
 | P1 | Legacy isolation | 旧 solver/report/config 仍可能被误用 | 标记 legacy 或迁移 |
 | P1 | Bounds semantics | hard feasible bounds 与 slack-budget bounds 需要明确区分 | 输出字段和文档修正 |
@@ -229,17 +260,17 @@ constraints:
 
 #### 当前问题
 
-当前 YAML schema 已有 `PriorSpec`，但 enabled prior 在 builder 中会失败。这是正确的，因为不能静默忽略 prior。
+当前 YAML schema 已有 `PriorSpec`。第一版实现支持 `fraction_interval_prior`、`group_total_prior`、`recipe_center_prior`、`anti_extreme_prior` 和 `ratio_prior`，并将 prior contribution 输出到结果中。
 
 但项目 objective 是：
 
 > 通过先验知识解决方程欠定问题。
 
-因此，prior 层是后续最关键的科学模块。
+因此，prior 层已经从“接口预留”进入“可运行初版”。后续重点不是继续堆更多 prior 类型，而是做 calibration、ablation 和 sensitivity。
 
 #### Proposed fix
 
-先实现 Level 2 deterministic / MAP priors，不直接跳到 Bayesian。
+已先实现 Level 2 deterministic / MAP priors，不直接跳到 Bayesian。
 
 首批建议实现：
 
@@ -283,7 +314,7 @@ priors:
 
 #### 工程设计建议
 
-新增：
+已新增：
 
 ```text
 src/nusol/priors/
@@ -306,13 +337,16 @@ PriorSpec      → objective/prior IR
 
 不要把 prior 继续塞进 constraint plugin 里，否则 hard feasibility 和 soft preference 会混乱。
 
-#### 验收条件
+#### 已完成验收条件
 
 - enabled prior 未注册时失败；
 - registered prior 能产生 objective contribution；
 - weight 进入 objective；
 - result 输出 prior contribution；
 - prior 不改变 hard feasible bounds，除非 YAML 明确声明 slack/probabilistic bounds；
+
+#### 仍未完成
+
 - 有 no-prior / single-prior / combined-prior ablation。
 
 ### 5.4 Bounds 语义需要更明确
@@ -682,11 +716,11 @@ raw_label_text
 
 ### Phase B：Diagnostics 和 result schema
 
-1. 新增 typed `SolveResult`；
-2. 输出 observation residuals；
-3. 输出 constraint diagnostics；
-4. 输出 objective contribution；
-5. manifest 记录 benchmark mode、interval construction method、mapping mode。
+1. 新增 typed `SolveResult`；✅
+2. 输出 observation residuals；✅ 当前输出 `observation_diagnostics`；
+3. 输出 constraint diagnostics；✅
+4. 输出 objective contribution；✅
+5. manifest 记录 benchmark mode、interval construction method、mapping mode；部分完成，benchmark summary 已记录。
 
 预期收益：
 
@@ -697,12 +731,12 @@ raw_label_text
 
 ### Phase C：Level 2 Prior
 
-1. 新增 `src/nusol/priors/`；
-2. 实现 `fraction_interval_prior`；
-3. 实现 `group_total_prior`；
-4. 实现 `anti_extreme_prior`；
-5. 实现 prior contribution diagnostics；
-6. 做 no-prior / single-prior / combined-prior ablation。
+1. 新增 `src/nusol/priors/`；✅
+2. 实现 `fraction_interval_prior`；✅
+3. 实现 `group_total_prior`；✅
+4. 实现 `anti_extreme_prior`；✅
+5. 实现 prior contribution diagnostics；✅
+6. 做 no-prior / single-prior / combined-prior ablation。部分完成：已支持 document variant generation，待接入 benchmark runner。
 
 预期收益：
 
@@ -726,7 +760,7 @@ raw_label_text
 ## 7. 不建议现在做的事
 
 1. 不建议立即上 Bayesian / hierarchical model。
-   - Prior 和 diagnostics 还没稳；
+   - Prior 初版和 diagnostics 已可运行，但 calibration、sensitivity 和报告语义还没稳；
    - 先做 deterministic MAP 更可解释。
 
 2. 不建议立即复杂化 label observation schema。
@@ -797,7 +831,7 @@ raw_label_text
 3. `solve()` result 增加 constraint / observation diagnostics；
 4. benchmark summary 写入 `benchmark_mode` 和 `mapping_mode`；
 5. legacy constraint profiles 加 warning；
-6. 实现第一个 Level 2 prior：`fraction_interval_prior`。
+6. 实现第一个 Level 2 prior：`fraction_interval_prior`。✅
 
 这组改动的收益最大，因为它们同时改善：
 

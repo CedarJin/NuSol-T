@@ -5,6 +5,7 @@ import numpy as np
 from nusol.compiler.compiler import compile_problem
 from nusol.compiler.ir import QuadraticPenaltyIR
 from nusol.config.loader import ConfigLoader
+from nusol.config.schema import DeclarationGroup
 from nusol.constraints.registry import get_constraint_registry
 from nusol.domain.builder import build_problem
 
@@ -61,3 +62,51 @@ def test_quadratic_plugin_fragment_is_preserved() -> None:
     assert len(compiled.quadratic_penalties) == 1
     assert compiled.quadratic_penalties[0].source_id == "quadratic_prior"
     assert compiled.quadratic_penalties[0].weight == 3.0
+
+
+def test_ingredient_order_is_declaration_group_aware() -> None:
+    doc = ConfigLoader().load_from_path("examples/bread_minimal.yaml")
+    doc.ingredients[1].declaration_group = DeclarationGroup.TWO_PERCENT
+    doc.ingredients[2].declaration_group = DeclarationGroup.TWO_PERCENT
+    constraint_type = type(doc.constraints[0])
+    doc.constraints = [
+        constraint_type(id="total_mass", type="mass_balance", mode="hard"),
+        constraint_type(
+            id="declaration_order",
+            type="ingredient_order",
+            mode="hard",
+            config={"groups": ["main"]},
+        ),
+    ]
+
+    compiled = compile_problem(build_problem(doc))
+
+    order_constraints = [
+        item for item in compiled.linear_constraints
+        if item.source_id == "declaration_order"
+    ]
+    assert order_constraints == []
+
+
+def test_two_percent_auto_generates_bounds_from_declaration_group() -> None:
+    doc = ConfigLoader().load_from_path("examples/bread_minimal.yaml")
+    doc.ingredients[2].declaration_group = DeclarationGroup.TWO_PERCENT
+    constraint_type = type(doc.constraints[0])
+    doc.constraints = [
+        constraint_type(id="total_mass", type="mass_balance", mode="hard"),
+        constraint_type(
+            id="two_percent_rule",
+            type="two_percent",
+            mode="hard",
+            config={"source": "declaration_group"},
+        ),
+    ]
+
+    compiled = compile_problem(build_problem(doc))
+
+    two_pct = [
+        item for item in compiled.linear_constraints
+        if item.source_id == "two_percent_rule"
+    ]
+    assert len(two_pct) == 1
+    assert two_pct[0].upper == 0.02

@@ -14,6 +14,7 @@ from nusol.compiler.ir import (
 from nusol.config.errors import UnsupportedConstraintError
 from nusol.constraints.registry import get_constraint_registry
 from nusol.domain.problem import IngredientProblem
+from nusol.priors.registry import get_prior_registry
 
 
 def compile_problem(problem: IngredientProblem) -> CompiledProblem:
@@ -186,6 +187,49 @@ def compile_problem(problem: IngredientProblem) -> CompiledProblem:
             else:
                 raise UnsupportedConstraintError(
                     f"Constraint '{c_id}' returned unsupported IR fragment "
+                    f"{type(frag).__name__}"
+                )
+
+    # Process registered priors from prior_ids. Priors are compiled into soft
+    # objective terms and must remain traceable to their YAML PriorSpec id.
+    prior_registry = get_prior_registry()
+    for p_id in problem.prior_ids:
+        p_type = problem.prior_types.get(p_id)
+        if p_type is None:
+            raise UnsupportedConstraintError(
+                f"Prior '{p_id}' has no type specified."
+            )
+        if not prior_registry.has(p_type):
+            raise UnsupportedConstraintError(
+                f"Prior '{p_id}' has unknown type '{p_type}'. "
+                f"Available prior types: {prior_registry.names()}"
+            )
+
+        cfg = problem.prior_configs.get(p_id, {})
+        plugin = prior_registry.get(p_type)
+        validated_params = plugin.validate_params(cfg.get("config", {}))
+        ir_fragments = plugin.compile(validated_params, ingredient_ids, n_vars)
+        for frag in ir_fragments:
+            if isinstance(frag, LinearConstraintIR):
+                linear_constraints.append(
+                    replace(
+                        frag,
+                        mode="soft",
+                        weight=cfg.get("weight", 1.0),
+                        source_id=p_id,
+                    )
+                )
+            elif isinstance(frag, QuadraticPenaltyIR):
+                quadratic_penalties.append(
+                    replace(
+                        frag,
+                        weight=cfg.get("weight", 1.0),
+                        source_id=p_id,
+                    )
+                )
+            else:
+                raise UnsupportedConstraintError(
+                    f"Prior '{p_id}' returned unsupported IR fragment "
                     f"{type(frag).__name__}"
                 )
 

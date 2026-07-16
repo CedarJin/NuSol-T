@@ -1,6 +1,6 @@
 # NuSol-T 项目进度
 
-> 2026-07-15 | 分支: `refactor/yaml-solver-framework` | 252 tests passing | GitHub: [CedarJin/NuSol-T](https://github.com/CedarJin/NuSol-T)
+> 2026-07-15 | 分支: `refactor/yaml-solver-framework` | 259 tests passing | GitHub: [CedarJin/NuSol-T](https://github.com/CedarJin/NuSol-T)
 
 ---
 
@@ -44,6 +44,8 @@ MAE 分布 (189 个成功配方):
 | **Compiler** | `compiler/compiler.py`, `ir.py` | YAML 约束 → Solver-Neutral IR |
 | **Constraints** | `constraints/registry.py`, `builtin/*.py` | 7 个 builtin：mass_balance、ingredient_order、two_percent、nutrient_interval、declared_percentage、linear_expression、plugin |
 | **Backends** | `backends/scipy_slsqp.py`, `highs_lp.py`, `registry.py` | Slack-based QP (point) + HiGHS LP (bounds) |
+| **Priors** | `priors/registry.py`, `priors/builtin/*.py` | Level 2 prior 初版：fraction interval、group total、recipe center、anti-extreme、ratio |
+| **Results** | `results/schema.py`, `api.py` | Typed SolveResult、constraint diagnostics、prior contributions、bounds type |
 | **API** | `api.py` | `solve(yaml_path)` 单入口 |
 | **CLI** | `cli.py` | `validate`、`resolve`、`inspect`、`solve` |
 
@@ -93,10 +95,10 @@ MAE 分布 (189 个成功配方):
 ## 五、测试
 
 ```
-252 tests passed (pytest)
+259 tests passed (pytest)
 ```
 
-覆盖：Config schema 验证、Domain model（NutrientValue 四态、CompositionMatrix 缺失处理）、Compiler（约束编译、IR 生成）、Backend（SLSQP point solve + 10x retry、HiGHS bounds solve + infeasibility check）、API（端到端、点估计/界限/独立/组合配置）、CSV 校验（SHA-256、ingredient 顺序对齐）
+覆盖：Config schema 验证、Domain model（NutrientValue 四态、CompositionMatrix 缺失处理）、Compiler（约束编译、IR 生成）、Backend（SLSQP point solve + 10x retry、HiGHS bounds solve + infeasibility check）、API（端到端、点估计/界限/独立/组合配置）、CSV 校验（SHA-256、ingredient 顺序对齐）、declaration-aware constraints、Level 2 priors、prior ablation variant generation。
 
 ---
 
@@ -108,8 +110,8 @@ MAE 分布 (189 个成功配方):
 |---|------|--------|
 | 1 | Fortificant 营养素对照表（解决 3 个 fortified cereal export 失败） | 中 |
 | 2 | SLSQP 收敛改进或备选 point solver（IPOPT） | 低 |
-| 3 | `ingredient_order` 支持 `two_percent_or_less`（仅对 main group 施加 a≥b≥c） | 中 |
-| 4 | Foundation Foods 数据集成（替换 SR Legacy 中质量较低的条目） | 中 |
+| 3 | Foundation Foods 数据集成（替换 SR Legacy 中质量较低的条目） | 中 |
+| 4 | Prior calibration、ablation 和 sensitivity | 中 |
 
 ### Phase 5-6: Branded Food 应用
 
