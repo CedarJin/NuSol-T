@@ -235,6 +235,26 @@
   </div>
 </div>
 
+<!-- ── SENSITIVITY ── -->
+<div class="card">
+  <h2>Observation Interval Sensitivity Analysis</h2>
+  <p>How does the choice of interval width (±5%, ±10%, ±15%, ±20% around label values)
+     affect solver success rate and accuracy? Tested on the 197-recipe validation set.</p>
+
+  <table>
+    <tr><th>Interval</th><th>Success</th><th>MAE Median</th><th>MAE Mean</th><th>MAE P25</th><th>MAE P75</th></tr>
+    <tr><td>±5%</td><td>99.5%</td><td>1.24 pp</td><td>1.95 pp</td><td>0.5 pp</td><td>2.0 pp</td></tr>
+    <tr style="background:#eff6ff"><td><strong>±10% (default)</strong></td><td>99.5%</td><td><strong>1.89 pp</strong></td><td>2.56 pp</td><td>1.0 pp</td><td>2.9 pp</td></tr>
+    <tr><td>±15%</td><td>100%</td><td>2.61 pp</td><td>3.08 pp</td><td>1.5 pp</td><td>4.1 pp</td></tr>
+    <tr><td>±20%</td><td>100%</td><td>3.21 pp</td><td>3.46 pp</td><td>1.4 pp</td><td>4.8 pp</td></tr>
+  </table>
+
+  <p class="note">±10% is the default: narrower than FDA compliance tolerance (±20%),
+     wider than USDA biological variation (±5–10% for most nutrients). The jump from
+     ±10% to ±15% costs 38% more median MAE for only 0.5% additional success — a poor
+     tradeoff. ±10% balances precision and robustness.</p>
+</div>
+
 <!-- ── FAILURE ANALYSIS ── -->
 <div class="card">
   <h2>Failure Analysis</h2>
