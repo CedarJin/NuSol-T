@@ -33,7 +33,9 @@ SR_PATH = (
 )
 VALIDATION_PATH = PROJECT_ROOT / "config" / "validation_recipes.json"
 OUTPUT_DIR = PROJECT_ROOT / "output" / "fndds_benchmark"
-SUMMARY_PATH = OUTPUT_DIR / "benchmark_summary.json"
+SUMMARY_PATH = OUTPUT_DIR / (
+    "benchmark_full.json" if "--full" in sys.argv else "benchmark_summary.json"
+)
 
 NFS_RE = re.compile(r'\bNFS\b', re.IGNORECASE)
 
@@ -43,6 +45,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--limit", type=int, default=0, help="Limit number of recipes (0=all)")
     parser.add_argument("--skip-export", action="store_true", help="Skip export, solve existing YAMLs")
+    parser.add_argument("--full", action="store_true",
+                        help="Run on ALL FNDDS multi-ingredient non-NFS recipes (~3734)")
     args = parser.parse_args()
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -53,25 +57,40 @@ def main():
     sr = SRLegacyDataAdapter(); sr.load(str(SR_PATH))
     print(f"  FNDDS: {len(fndds)} foods, SR Legacy: {len(sr)} foods")
 
-    # Load validation IDs
-    with open(VALIDATION_PATH) as f:
-        val_ids = json.load(f)["fdc_ids"]
-    print(f"  Validation set: {len(val_ids)} recipe IDs")
-
-    # Filter: multi-ingredient (2+), non-NFS
-    usable = []
-    skipped_nfs = []
-    for fdc_id in val_ids:
-        recipe = fndds.get_recipe(fdc_id)
-        if recipe is None:
-            continue
-        n_ing = len(recipe.get("ingredients", []))
-        if n_ing < 2:
-            continue
-        if NFS_RE.search(recipe.get("description", "")):
-            skipped_nfs.append(fdc_id)
-            continue
-        usable.append(fdc_id)
+    # Determine recipe IDs to test
+    if args.full:
+        # Run on ALL FNDDS multi-ingredient non-NFS recipes
+        all_recipes = fndds.get_recipes_with_ingredients(min_ingredients=2)
+        usable = []
+        skipped_nfs = []
+        for fdc_id in all_recipes:
+            recipe = fndds.get_recipe(fdc_id)
+            if recipe is None:
+                continue
+            if NFS_RE.search(recipe.get("description", "")):
+                skipped_nfs.append(fdc_id)
+                continue
+            usable.append(fdc_id)
+        print(f"  Mode: FULL — all FNDDS multi-ingredient non-NFS")
+    else:
+        # Run on validation set only
+        with open(VALIDATION_PATH) as f:
+            val_ids = json.load(f)["fdc_ids"]
+        print(f"  Validation set: {len(val_ids)} recipe IDs")
+        usable = []
+        skipped_nfs = []
+        for fdc_id in val_ids:
+            recipe = fndds.get_recipe(fdc_id)
+            if recipe is None:
+                continue
+            n_ing = len(recipe.get("ingredients", []))
+            if n_ing < 2:
+                continue
+            if NFS_RE.search(recipe.get("description", "")):
+                skipped_nfs.append(fdc_id)
+                continue
+            usable.append(fdc_id)
+        print(f"  Mode: validation set (200 sampled)")
 
     print(f"  NFS skipped: {len(skipped_nfs)}")
     print(f"  Usable: {len(usable)}")
@@ -191,7 +210,7 @@ def main():
             "which is more precise than pure name-based search. "
             "A future 'name_only' benchmark will use strict text-based mapping."
         ),
-        "total_in_validation_set": len(val_ids),
+        "total_in_fndds": len(fndds) if 'fndds' in dir() else 0,
         "nfs_skipped": len(skipped_nfs),
         "attempted": len(usable),
         "export_failed": n_export_fail,
