@@ -1,7 +1,6 @@
 """Tests for YAML configuration loader and schema validation."""
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import pytest
@@ -174,9 +173,23 @@ output:
         doc = {
             "schema_version": "1.0-draft",
             "problem_id": "extra",
-            "basis": {"ingredient_mass": "input_fraction", "nutrient_amount": "per_100g_finished_product"},
-            "ingredients": [{"id": "a", "name": "A", "declaration_position": 0, "unknown_field": "bad"}],
-            "composition": {"source": "inline", "nutrients": [{"id": "e", "unit": "kcal"}], "values": {"a": [100.0]}},
+            "basis": {
+                "ingredient_mass": "input_fraction",
+                "nutrient_amount": "per_100g_finished_product",
+            },
+            "ingredients": [
+                {
+                    "id": "a",
+                    "name": "A",
+                    "declaration_position": 0,
+                    "unknown_field": "bad",
+                }
+            ],
+            "composition": {
+                "source": "inline",
+                "nutrients": [{"id": "e", "unit": "kcal"}],
+                "values": {"a": [100.0]},
+            },
             "observations": [{"nutrient": "e", "unit": "kcal", "interval": [0, 10]}],
             "model": {"type": "linear_mixing"},
             "variables": {"ingredient_fractions": {"lower": 0.0, "upper": 1.0}},
@@ -193,12 +206,19 @@ output:
         doc = {
             "schema_version": "1.0-draft",
             "problem_id": "dup",
-            "basis": {"ingredient_mass": "input_fraction", "nutrient_amount": "per_100g_finished_product"},
+            "basis": {
+                "ingredient_mass": "input_fraction",
+                "nutrient_amount": "per_100g_finished_product",
+            },
             "ingredients": [
                 {"id": "a", "name": "A1", "declaration_position": 0},
                 {"id": "a", "name": "A2", "declaration_position": 1},
             ],
-            "composition": {"source": "inline", "nutrients": [{"id": "e", "unit": "kcal"}], "values": {"a": [100.0]}},
+            "composition": {
+                "source": "inline",
+                "nutrients": [{"id": "e", "unit": "kcal"}],
+                "values": {"a": [100.0]},
+            },
             "observations": [{"nutrient": "e", "unit": "kcal", "interval": [0, 10]}],
             "model": {"type": "linear_mixing"},
             "variables": {"ingredient_fractions": {"lower": 0.0, "upper": 1.0}},
@@ -250,6 +270,17 @@ class TestSolveDocument:
                 solver=SolverSpec(point=PointSolverSpec()),
                 output=OutputSpec(path="out.json"),
             )
+
+    def test_prior_evidence_status_supports_calibration_lifecycle(self) -> None:
+        """Prior evidence status distinguishes examples from calibrated priors."""
+        for status in ["example", "experimental", "calibrated", "validated", "deprecated"]:
+            prior = PriorSpec(
+                id=f"{status}_prior",
+                type="fraction_interval_prior",
+                weight=0.5,
+                evidence={"status": status, "source": "unit_test"},
+            )
+            assert prior.evidence.status == status
 
     def test_observation_exactly_one_mode(self) -> None:
         """Observation must have exactly one of interval/exact/less_than."""

@@ -9,7 +9,7 @@
 
 一句话状态：
 
-> NuSol-T 已经具备以 YAML 为唯一求解输入的原料比例逆向求解框架，可以执行基础约束、点估计和可行边界求解；下一阶段重点是真实包装食品标签解析、配料映射、食品科学先验和可信报告。
+> NuSol-T 已经具备以 YAML 为唯一求解输入的原料比例逆向求解框架，可以执行基础约束、点估计、可行边界求解和 YAML-declared prior 机制；下一阶段重点是真实包装食品标签解析、配料映射、prior calibration 和可信报告。
 
 ## 当前验证结果
 
@@ -69,9 +69,9 @@
 
    未注册 prior、未注册约束、能力不匹配等情况必须显式报错，不能静默忽略。
 
-7. **Level 2 Prior 初版**
+7. **Level 2 Prior 机制初版**
 
-   当前支持 `fraction_interval_prior`、`group_total_prior`、`recipe_center_prior`、`anti_extreme_prior` 和 `ratio_prior`，并输出 `prior_contributions`。
+   当前支持 `fraction_interval_prior`、`group_total_prior`、`recipe_center_prior`、`anti_extreme_prior` 和 `ratio_prior`，并输出 `prior_contributions`。这些 prior 目前由 YAML 显式声明；仓库中的测试/示例参数用于验证机制，不代表已完成科学标定。
 
 ## 仍未完成的关键能力
 
@@ -79,8 +79,8 @@
 |---|---|---|
 | Branded Food label parser | 未完成 | 需要把真实标签文本解析为结构化 IngredientTree |
 | Ingredient mapper | 未完成 | 真实品牌食品短名到 USDA 标准原料的映射仍是核心挑战 |
-| 食品科学 prior registry | 初版完成 | 已支持 5 类 Level 2 priors；后续需要 calibration 和 sensitivity |
-| Calibrated priors | 未完成 | 需要基于独立数据校准 prior weight、分布和适用条件 |
+| Prior registry / compiler / backend | 初版完成 | 已支持 5 类 YAML-declared Level 2 priors，并可输出 contribution |
+| 科学标定 prior 库 | 未完成 | 当前没有从 FNDDS 自动估计 prior 参数；需要基于独立数据校准 prior weight、分布和适用条件 |
 | Bayesian / hierarchical backend | 未完成 | 属于 Level 4 扩展，应复用 YAML / domain / provenance |
 | TrustReport / TrustGrade | 未完成 | 在完成校准和外部验证前，不应声称科学可信等级 |
 | G0-G7 消融实验 | 待完成 | 需要基于当前新架构重新跑完整消融 |

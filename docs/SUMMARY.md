@@ -26,7 +26,7 @@ NuSol-T 已完成 YAML solver framework 的核心重构。当前系统可以用 
 6. CSV resource checksum、ingredient 顺序对齐、resolved YAML 和 manifest 记录。
 7. FNDDS / SR Legacy / Foundation / Branded 数据适配器基础模块。
 8. FNDDS branded-food 条件模拟 benchmark。
-9. Level 2 prior 初版与 prior contribution diagnostics。
+9. Level 2 prior 机制初版与 prior contribution diagnostics。
 
 ## 当前能力边界
 
@@ -36,12 +36,14 @@ NuSol-T 已完成 YAML solver framework 的核心重构。当前系统可以用 
 - YAML 驱动的可复现配置；
 - 基础硬约束、软约束和可行边界；
 - 在受控 FNDDS 条件下验证求解框架有效性。
+- 接收 YAML 显式声明的 prior，并在求解结果中输出 prior contribution。
 
 当前还不能声称：
 
 - 恢复真实商业配方；
 - 已完成真实包装食品端到端应用；
 - 已完成校准食品科学先验；
+- 仓库示例/测试中的 prior 参数具有科学标定意义；
 - 已提供 Bayesian credible interval；
 - TrustGrade 已具有科学校准意义。
 

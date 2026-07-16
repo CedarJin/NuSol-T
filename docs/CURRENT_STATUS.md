@@ -44,7 +44,7 @@ MAE 分布 (189 个成功配方):
 | **Compiler** | `compiler/compiler.py`, `ir.py` | YAML 约束 → Solver-Neutral IR |
 | **Constraints** | `constraints/registry.py`, `builtin/*.py` | 7 个 builtin：mass_balance、ingredient_order、two_percent、nutrient_interval、declared_percentage、linear_expression、plugin |
 | **Backends** | `backends/scipy_slsqp.py`, `highs_lp.py`, `registry.py` | Slack-based QP (point) + HiGHS LP (bounds) |
-| **Priors** | `priors/registry.py`, `priors/builtin/*.py` | Level 2 prior 初版：fraction interval、group total、recipe center、anti-extreme、ratio |
+| **Priors** | `priors/registry.py`, `priors/builtin/*.py` | Level 2 prior 机制初版：支持 YAML 显式声明 fraction interval、group total、recipe center、anti-extreme、ratio；参数尚未科学标定 |
 | **Results** | `results/schema.py`, `api.py` | Typed SolveResult、constraint diagnostics、prior contributions、bounds type |
 | **API** | `api.py` | `solve(yaml_path)` 单入口 |
 | **CLI** | `cli.py` | `validate`、`resolve`、`inspect`、`solve` |
@@ -89,6 +89,7 @@ MAE 分布 (189 个成功配方):
 5. **Fortificant 显式处理**：纯营养素添加剂（code 999xxx）识别并排除，受影响营养素通过 `max_ing_val < 50% label` 自动跳过
 6. **kJ→kcal 自动修正**：Atwater 4-4-9 公式 (`4×protein + 4×carbs + 9×fat`) 检测能量单位错误（`ratio > 3.0` → 除以 4.184）
 7. **Branded-food 条件模拟**：FNDDS 仅用配料名称 + Nutrition Facts 标签作为输入，不泄露 FNDDS code 和真实比例
+8. **Prior 机制边界**：当前 prior 参数来自 YAML 显式声明；测试和示例中的 prior 数值只用于验证机制，不代表已完成 FNDDS calibration 或食品科学先验库
 
 ---
 
@@ -99,6 +100,8 @@ MAE 分布 (189 个成功配方):
 ```
 
 覆盖：Config schema 验证、Domain model（NutrientValue 四态、CompositionMatrix 缺失处理）、Compiler（约束编译、IR 生成）、Backend（SLSQP point solve + 10x retry、HiGHS bounds solve + infeasibility check）、API（端到端、点估计/界限/独立/组合配置）、CSV 校验（SHA-256、ingredient 顺序对齐）、declaration-aware constraints、Level 2 priors、prior ablation variant generation。
+
+其中 Level 2 priors 的测试覆盖的是 schema/registry/compiler/backend/result diagnostics 机制，不是 prior 参数科学有效性的实证验证。真正的 prior 参数需要后续基于 FNDDS category-level statistics、独立验证集或专家规则进行 calibration，并通过 ablation/sensitivity 检查其贡献。
 
 ---
 

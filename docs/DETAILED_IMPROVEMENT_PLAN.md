@@ -19,7 +19,7 @@
 - observation schema 支持 `source` 字段；
 - `nusol.solver` 已标记为 legacy；
 - legacy constraint profile YAML 已标记为非 solve document；
-- Level 2 prior registry / compiler 已实现第一版；
+- Level 2 prior registry / compiler 已实现第一版机制；
 - SLSQP backend 已支持 quadratic prior objective；
 - `solve()` result 已输出 `prior_contributions`；
 - typed `SolveResult` / `BoundsResult` 已加入并用于校验公开结果；
@@ -33,6 +33,7 @@
 未完成：
 
 - targeted scientific checks；
+- prior calibration / sensitivity；当前 prior 参数仍是 YAML 显式声明，不是从 FNDDS 自动学习或科学标定得到；
 - prior ablation 接入完整 benchmark runner。
 
 ## 1. 本文目的
@@ -95,10 +96,12 @@ YAML
 
 但从项目长期 objective 看，还有三个核心缺口：
 
-1. **Prior 层已完成第一版，但仍需校准和消融**
+1. **Prior 机制已完成第一版，但仍需校准和消融**
    - 项目核心科学目标是用有证据的先验解决欠定逆问题；
    - 当前已支持 Level 2 deterministic / MAP-style priors；
-   - 但 calibrated priors 和 prior sensitivity 仍是后续任务。
+   - 目前 prior 的数值参数来自 YAML 显式声明；
+   - 仓库测试和示例中的 prior 参数只用于机制验证，不应解释为科学结论；
+   - calibrated priors 和 prior sensitivity 仍是后续任务。
 
 2. **Diagnostics 不够细**
    - 当前 point solver 主要返回总 objective 和 fractions；
@@ -268,6 +271,8 @@ constraints:
 
 因此，prior 层已经从“接口预留”进入“可运行初版”。后续重点不是继续堆更多 prior 类型，而是做 calibration、ablation 和 sensitivity。
 
+需要明确一个科学边界：当前实现完成的是 prior 的表达、校验、编译、求解和诊断机制；不是已经完成的科学先验库。当前 prior 参数由 YAML 作者显式给出，测试和示例中的数值主要用于证明机制可运行，不应被当作经过 FNDDS 或食品学实证标定的参数。后续所有用于正式推断的 prior 都必须带有可追溯 `evidence`，并说明来源、样本范围、统计口径、适用 food category 和版本。
+
 #### Proposed fix
 
 已先实现 Level 2 deterministic / MAP priors，不直接跳到 Bayesian。
@@ -312,6 +317,22 @@ priors:
       loss: squared_hinge
 ```
 
+上面的数值只能作为格式示例。正式 prior 不应靠个人经验或代码作者直觉固化；推荐来源顺序是：
+
+1. FNDDS category-level calibration statistics；
+2. 独立 benchmark / held-out split；
+3. 明确记录的专家规则或法规规则；
+4. 仅用于 debug 的 hand-written example prior。
+
+每个正式 prior 至少应记录：
+
+- `evidence.status`：`example` / `experimental` / `calibrated` / `deprecated`；
+- 数据来源和版本；
+- food category 或适用条件；
+- 统计口径，例如 p10-p90、median/IQR、empirical center；
+- 样本量或覆盖范围；
+- 生成脚本或 calibration artifact。
+
 #### 工程设计建议
 
 已新增：
@@ -347,7 +368,10 @@ PriorSpec      → objective/prior IR
 
 #### 仍未完成
 
-- 有 no-prior / single-prior / combined-prior ablation。
+- prior 参数的 FNDDS category-level calibration；
+- no-prior / single-prior / combined-prior ablation 接入完整 benchmark runner；
+- prior weight sensitivity；
+- 将 hand-written example prior 与 calibrated prior 在文档和输出中明确区分。
 
 ### 5.4 Bounds 语义需要更明确
 

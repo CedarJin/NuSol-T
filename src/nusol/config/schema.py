@@ -5,23 +5,23 @@ All models use ``extra="forbid"`` to reject unknown fields at load time.
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
 # ── Version & Basis ───────────────────────────────────────────────────────────
 
-class SchemaVersion(str, Enum):
+class SchemaVersion(StrEnum):
     V1_0_DRAFT = "1.0-draft"
     V1_0 = "1.0"
 
 
-class MassBasis(str, Enum):
+class MassBasis(StrEnum):
     INPUT_FRACTION = "input_fraction"
 
 
-class NutrientBasis(str, Enum):
+class NutrientBasis(StrEnum):
     PER_100G = "per_100g_finished_product"
 
 
@@ -33,14 +33,14 @@ class BasisSpec(BaseModel, extra="forbid"):
 # ── Evidence (for priors / soft constraints) ─────────────────────────────────
 
 class EvidenceSpec(BaseModel, extra="forbid"):
-    status: Literal["validated", "experimental"]
+    status: Literal["example", "experimental", "calibrated", "validated", "deprecated"]
     source: str
     version: str | None = None
 
 
 # ── Ingredients ───────────────────────────────────────────────────────────────
 
-class DeclarationGroup(str, Enum):
+class DeclarationGroup(StrEnum):
     MAIN = "main"
     TWO_PERCENT = "two_percent_or_less"
 
@@ -73,7 +73,7 @@ class NutrientColumnSpec(BaseModel, extra="forbid"):
     )
 
 
-class MissingValuePolicy(str, Enum):
+class MissingValuePolicy(StrEnum):
     ERROR = "error"
     DROP_NUTRIENT = "drop_nutrient"
     DROP_INGREDIENT = "drop_ingredient"
@@ -143,7 +143,7 @@ class NutrientObservation(BaseModel, extra="forbid"):
 
 # ── Model ─────────────────────────────────────────────────────────────────────
 
-class ModelType(str, Enum):
+class ModelType(StrEnum):
     LINEAR_MIXING = "linear_mixing"
 
 
@@ -171,12 +171,12 @@ class VariableSpec(BaseModel, extra="forbid"):
 
 # ── Constraints ───────────────────────────────────────────────────────────────
 
-class ConstraintMode(str, Enum):
+class ConstraintMode(StrEnum):
     HARD = "hard"
     SOFT = "soft"
 
 
-class LossFunction(str, Enum):
+class LossFunction(StrEnum):
     SQUARED_HINGE = "squared_hinge"
     LEAST_SQUARES = "least_squares"
 
@@ -194,6 +194,14 @@ class ConstraintSpec(BaseModel, extra="forbid"):
 # ── Priors ────────────────────────────────────────────────────────────────────
 
 class PriorSpec(BaseModel, extra="forbid"):
+    """YAML-declared prior preference.
+
+    This defines the mechanism for injecting prior knowledge into the objective.
+    It does not imply that numeric prior parameters are scientifically calibrated;
+    provenance and calibration status must be carried by ``evidence`` and the
+    external calibration workflow.
+    """
+
     id: str = Field(..., pattern=r"^[a-z][a-z0-9_]*$")
     type: str
     enabled: bool = True
@@ -205,7 +213,7 @@ class PriorSpec(BaseModel, extra="forbid"):
 
 # ── Solver ────────────────────────────────────────────────────────────────────
 
-class BackendName(str, Enum):
+class BackendName(StrEnum):
     SCIPY_SLSQP = "scipy_slsqp"
     HIGHS_LP = "highs_lp"
 
