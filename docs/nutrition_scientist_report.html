@@ -531,20 +531,20 @@ Plotly.newPlot('mae-dist', [{
 
 // ── Figure 2: Ablation ──
 const ablationData = [
-  {level: 'G0\nmass_balance', mae: 2.53, ci: 0.2},
+  {level: 'G0\nbaseline', mae: 2.53, ci: 0.2},
   {level: 'G1\n+ ingredient\norder', mae: 2.10, ci: 0.18},
   {level: 'G2\n+ two_percent\nrule', mae: 1.96, ci: 0.15},
-  {level: 'G3\nfull config', mae: 1.96, ci: 0.15},
 ];
 Plotly.newPlot('ablation-chart', [{
   x: ablationData.map(d => d.level),
   y: ablationData.map(d => d.mae),
-  type: 'bar', marker: {color: ['#94a3b8', '#60a5fa', '#3b82f6', '#2563eb']},
+  type: 'bar', marker: {color: ['#94a3b8', '#3b82f6', '#2563eb']},
   text: ablationData.map(d => `${d.mae.toFixed(2)} pp`),
   textposition: 'outside', textfont: {size: 14},
 }], {
   margin: {t: 20, r: 20, b: 60, l: 60},
   yaxis: {title: 'Median MAE (pp)', gridcolor: '#e5e7eb', range: [1.5, 3.0]},
+  xaxis: {categoryorder: 'array', categoryarray: ['G0\nbaseline', 'G1\n+ ingredient\norder', 'G2\n+ two_percent\nrule']},
   bargap: 0.3,
 }, {responsive: true});
 
