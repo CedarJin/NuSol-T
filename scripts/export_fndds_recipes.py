@@ -64,6 +64,31 @@ FNDDS_ALIASES = {"Total Sugars, Total": "Total Sugars", "Vitamin D": "Vitamin D 
 KJ_KCAL = 4.184
 
 
+def _detect_yield_factor(
+    true_fractions: dict[str, float],
+    ing_nutrients: dict[str, dict[str, float]],
+    label_energy: float,
+) -> float:
+    """Detect raw→cooked mismatch via energy ratio.
+
+    When SR Legacy has raw ingredient profiles but the FNDDS final product
+    is cooked, moisture loss concentrates nutrients.  This estimates a
+    yield factor so that the linear model can account for cooking loss.
+
+    Returns 1.0 if no correction is needed (>1.0 means concentration).
+    """
+    predicted = sum(
+        true_fractions[iid] * ing_nutrients[iid]
+        for iid in true_fractions
+    )
+    if predicted <= 0 or label_energy <= 0:
+        return 1.0
+    ratio = label_energy / predicted
+    if ratio > 1.15:  # clearly concentrated (moisture loss)
+        return ratio
+    return 1.0
+
+
 def _resolve_name(fndds_name: str) -> str:
     return FNDDS_ALIASES.get(fndds_name, fndds_name)
 
@@ -237,7 +262,34 @@ def export_recipe(fdc_id: int, fndds, sr, output_dir: Path) -> dict | None:
             data[rname] = nut_map.get(rname)
         ing_data[ing["id"]] = data
 
-    # ── Step 3: Final product nutrients → observations ──────────────────
+    # ── Step 3: Detect yield factor (raw→cooked moisture loss) ──────────
+    # Build a temporary energy dict and true fraction dict for detection
+    ing_energy: dict[str, float] = {}
+    for ing in ordered:
+        iid = ing["id"]
+        raw_energy = ing_data[iid].get("Energy", 0) or 0.0
+        mc = ing_macros[iid]
+        ing_energy[iid] = _correct_energy(
+            raw_energy,
+            protein_g=mc["protein"],
+            carbs_g=mc["carbs"],
+            fat_g=mc["fat"],
+        )
+
+    label_energy = 0.0
+    for nr in recipe["final_nutrients"].nutrients:
+        if nr.name == "Energy":
+            label_energy = nr.amount
+            break
+
+    true_fracs = {ing["id"]: ing["true_frac"] for ing in ordered}
+    yield_factor = _detect_yield_factor(true_fracs, ing_energy, label_energy)
+    if yield_factor > 1.0:
+        warnings.append(
+            f"Yield factor {yield_factor:.3f} detected: raw→cooked moisture loss"
+        )
+
+    # ── Step 4: Final product nutrients → observations ──────────────────
     final_nut_map: dict[str, float] = {}
     for nr in recipe["final_nutrients"].nutrients:
         final_nut_map[_resolve_name(nr.name)] = nr.amount
@@ -326,7 +378,7 @@ def export_recipe(fdc_id: int, fndds, sr, output_dir: Path) -> dict | None:
     # Nutrients list
     yaml_nutrients = [{"id": cid, "unit": u} for (_, cid, u, _, _) in obs_nutrients]
 
-    # Composition values (energy-corrected)
+    # Composition values (energy-corrected, yield-adjusted)
     yaml_values = {}
     for ing in ordered:
         iid = ing["id"]
@@ -342,6 +394,9 @@ def export_recipe(fdc_id: int, fndds, sr, output_dir: Path) -> dict | None:
                     carbs_g=ing_macros[iid]["carbs"],
                     fat_g=ing_macros[iid]["fat"],
                 )
+            # Apply yield factor for raw→cooked moisture loss
+            if yield_factor > 1.0:
+                val = val * yield_factor
             row.append(round(val, 4))
         yaml_values[iid] = row
 
@@ -382,7 +437,12 @@ def export_recipe(fdc_id: int, fndds, sr, output_dir: Path) -> dict | None:
             "values": yaml_values,
         },
         "observations": yaml_obs,
-        "model": {"type": "linear_mixing"},
+        "model": {
+            "type": "linear_mixing",
+            "config": {
+                "yield_factor": round(yield_factor, 4),
+            } if yield_factor > 1.0 else {},
+        },
         "variables": {"ingredient_fractions": {"lower": 0.0, "upper": 1.0}},
         "constraints": [
             {"id": "mass_balance", "type": "mass_balance", "mode": "hard"},
