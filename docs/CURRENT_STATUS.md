@@ -1,6 +1,6 @@
 # NuSol-T 项目进度
 
-> 2026-07-15 | 分支: `refactor/yaml-solver-framework` | 266 tests passing | GitHub: [CedarJin/NuSol-T](https://github.com/CedarJin/NuSol-T)
+> 2026-07-15 | 分支: `refactor/yaml-solver-framework` | 268 tests passing | GitHub: [CedarJin/NuSol-T](https://github.com/CedarJin/NuSol-T)
 
 ---
 
@@ -62,7 +62,7 @@ MAE 分布 (189 个成功配方):
 
 | 文件 | 功能 |
 |------|------|
-| `scripts/export_fndds_recipes.py` | FNDDS recipe → branded-food-conditions YAML（四级 mapper、kJ→kcal 修正、fortificant 分离与 diagnostics） |
+| `scripts/export_fndds_recipes.py` | FNDDS recipe → branded-food-conditions YAML（四级 mapper、kJ→kcal 修正、fortificant 分离、可量化 contribution adjustment 与 diagnostics） |
 | `scripts/run_fndds_benchmark.py` | 批量导出 + 求解 + MAE 统计 |
 | `examples/bread_minimal.yaml` | 简单面包配方示例 |
 | `examples/oat_milk.yaml` | Oat milk 手写 YAML（演示完整流程） |
@@ -86,7 +86,7 @@ MAE 分布 (189 个成功配方):
 2. **Solver-Neutral IR**：约束编译为 solver-agnostic 中间表示 (`CompiledProblem`)，后端可替换
 3. **Slack-based QP**：软约束通过 slack 变量 + 二次惩罚实现，而非硬区间；`objective = Σ w·s²`
 4. **四级 Ingredient Mapper**：`FNDDS code → Foundation Foods → SR Legacy ndb → 名称搜索`，code-based 优先于 text-based
-5. **Fortificant 显式处理**：纯营养素添加剂（code 999xxx / 名称规则）从普通 ingredient fraction 求解中分离，写入 `fortification` diagnostics；受 fortification 主导的 nutrient 被结构化记录为 skipped nutrient
+5. **Fortificant 显式处理**：纯营养素添加剂（code 999xxx / 名称规则）从普通 ingredient fraction 求解中分离，写入 `fortification` diagnostics；calcium/iron/fiber 等可量化贡献会先从 label observation 中扣除，potency 不明确的 vitamin premix 仍只做 suspected metadata
 6. **kJ→kcal 自动修正**：Atwater 4-4-9 公式 (`4×protein + 4×carbs + 9×fat`) 检测能量单位错误（`ratio > 3.0` → 除以 4.184）
 7. **Branded-food 条件模拟**：FNDDS 仅用配料名称 + Nutrition Facts 标签作为输入，不泄露 FNDDS code 和真实比例
 8. **Prior 机制边界**：当前 prior 参数来自 YAML 显式声明；测试和示例中的 prior 数值只用于验证机制，不代表已完成 FNDDS calibration 或食品科学先验库
@@ -96,7 +96,7 @@ MAE 分布 (189 个成功配方):
 ## 五、测试
 
 ```
-266 tests passed (pytest)
+268 tests passed (pytest)
 ```
 
 覆盖：Config schema 验证、Domain model（NutrientValue 四态、CompositionMatrix 缺失处理）、Compiler（约束编译、IR 生成）、Backend（SLSQP point solve + adaptive retry trace、HiGHS bounds solve + infeasibility check）、API（端到端、点估计/界限/独立/组合配置）、CSV 校验（SHA-256、ingredient 顺序对齐）、declaration-aware constraints、Level 2 priors、prior ablation variant generation。
@@ -111,7 +111,7 @@ MAE 分布 (189 个成功配方):
 
 | # | 任务 | 优先级 |
 |---|------|--------|
-| 1 | Fortificant→nutrient contribution table / additive solver（解决 fortified cereal micronutrient attribution） | 中 |
+| 1 | 扩展 Fortificant contribution table / additive solver（vitamin D、B vitamins 等 potency 依赖营养素仍未定量） | 中 |
 | 2 | SLSQP 收敛改进或备选 point solver（IPOPT） | 低 |
 | 3 | Foundation Foods 数据集成（替换 SR Legacy 中质量较低的条目） | 中 |
 | 4 | Prior calibration、ablation 和 sensitivity | 中 |

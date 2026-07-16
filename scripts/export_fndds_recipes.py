@@ -22,6 +22,7 @@ from typing import Any
 import yaml
 
 from nusol.data.fortification import (
+    aggregate_contributions,
     build_fortification_ingredient,
     classify_export_failure,
     fortification_diagnostics,
@@ -242,11 +243,31 @@ def export_recipe(fdc_id: int, fndds, sr, output_dir: Path) -> dict | None:
         final_nut_map[_resolve_name(nr.name)] = nr.amount
 
     # ── Step 4: Select observable nutrients ──────────────────────────────
-    obs_nutrients: list[tuple[str, str, str]] = []  # [(fda_name, canonical_id, unit)]
+    fortificant_contributions = aggregate_contributions(fortificants)
+    obs_nutrients: list[tuple[str, str, str, float, float]] = []
+    # [(fda_name, canonical_id, unit, adjusted_label_value, raw_label_value)]
     for fda_name, (canon_id, unit) in FDA_LABEL.items():
         rname = _resolve_name(fda_name)
-        label_val = final_nut_map.get(rname)
-        if label_val is None or label_val <= 0:
+        raw_label_val = final_nut_map.get(rname)
+        if raw_label_val is None or raw_label_val <= 0:
+            continue
+        contribution = fortificant_contributions.get(canon_id, 0.0)
+        label_val = max(0.0, raw_label_val - contribution)
+        if contribution > 0:
+            warnings.append(
+                f"Adjust '{canon_id}' label by estimated fortificant contribution: "
+                f"{raw_label_val:.3f} - {contribution:.3f} = {label_val:.3f}"
+            )
+        if raw_label_val > 0 and contribution >= raw_label_val * 0.9:
+            skipped_nutrients.append({
+                "nutrient": canon_id,
+                "reason": "explained_by_fortification_contribution",
+                "label_value": raw_label_val,
+                "estimated_fortificant_contribution": contribution,
+                "adjusted_label_value": label_val,
+            })
+            continue
+        if label_val <= 0:
             continue
 
         # All ingredients must have data
@@ -273,12 +294,14 @@ def export_recipe(fdc_id: int, fndds, sr, output_dir: Path) -> dict | None:
             skipped_nutrients.append({
                 "nutrient": canon_id,
                 "reason": "fortification_dominated",
-                "label_value": label_val,
+                "label_value": raw_label_val,
+                "adjusted_label_value": label_val,
+                "estimated_fortificant_contribution": contribution,
                 "max_base_ingredient_value": max_ing_val,
             })
             continue
 
-        obs_nutrients.append((rname, canon_id, unit))
+        obs_nutrients.append((rname, canon_id, unit, label_val, raw_label_val))
 
     if not obs_nutrients:
         warnings.append("No observable nutrients — all skipped or incomplete")
@@ -301,14 +324,14 @@ def export_recipe(fdc_id: int, fndds, sr, output_dir: Path) -> dict | None:
     # ── Step 5: Build YAML ──────────────────────────────────────────────
 
     # Nutrients list
-    yaml_nutrients = [{"id": cid, "unit": u} for (_, cid, u) in obs_nutrients]
+    yaml_nutrients = [{"id": cid, "unit": u} for (_, cid, u, _, _) in obs_nutrients]
 
     # Composition values (energy-corrected)
     yaml_values = {}
     for ing in ordered:
         iid = ing["id"]
         row = []
-        for rname, cid, unit in obs_nutrients:
+        for rname, cid, unit, label_val, raw_label_val in obs_nutrients:
             val = ing_data[iid].get(rname)
             if val is None:
                 val = 0.0
@@ -324,13 +347,15 @@ def export_recipe(fdc_id: int, fndds, sr, output_dir: Path) -> dict | None:
 
     # Observations with ±10% intervals
     yaml_obs = []
-    for rname, cid, unit in obs_nutrients:
-        label_val = final_nut_map[rname]
+    for rname, cid, unit, label_val, raw_label_val in obs_nutrients:
+        source = "fndds_workflow_pm10pct"
+        if label_val != raw_label_val:
+            source = "fndds_workflow_pm10pct_fortification_adjusted"
         yaml_obs.append({
             "nutrient": cid,
             "unit": unit,
             "interval": [round(label_val * 0.9, 3), round(label_val * 1.1, 3)],
-            "source": "fndds_workflow_pm10pct",  # FNDDS final product ±10%
+            "source": source,  # FNDDS final product ±10%, optionally adjusted
         })
 
     doc = {

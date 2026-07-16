@@ -592,7 +592,7 @@ model:
 
 #### 当前问题
 
-当前 FNDDS export 已经能识别 fortificant，并把它们从普通 ingredient fraction 求解中分离，输出 `fortification` diagnostics；可能由 fortification 主导的 nutrients 会被结构化记录为 skipped nutrients。这比原先只靠 skip 更可复现，但还没有实现 fortificant→nutrient contribution table 或 additive solver，因此仍不能完整解释 fortified cereal 的强化维生素/矿物质。
+当前 FNDDS export 已经能识别 fortificant，并把它们从普通 ingredient fraction 求解中分离，输出 `fortification` diagnostics。对于 calcium、iron、fiber 等质量换算明确的 fortificant，export 会先估计 fortificant contribution 并从 label observation 中扣除；可能由 fortification 主导但无法定量的 nutrients 会被结构化记录为 skipped/suspected nutrients。这比原先只靠 skip 更可复现，但还没有处理 vitamin D、B vitamins、folic acid premix 等 potency 依赖营养素，因此仍不能完整解释 fortified cereal 的全部强化维生素/矿物质。
 
 #### Proposed fix
 
@@ -600,6 +600,7 @@ model:
 
 - 保留普通 ingredient solve 与 fortificant layer 分离的策略；✅
 - 在 benchmark summary 中明确记录 skipped fortificant 和 skipped nutrient；✅
+- 对 calcium/iron/fiber 等可量化 fortificant contribution 做 observation adjustment；✅
 - 不把相关 nutrient 纳入 MAE 解释。
 
 中期：

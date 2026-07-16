@@ -1,8 +1,8 @@
 """Fortification policy helpers for FNDDS export.
 
-This module does not try to solve micronutrient fortification amounts yet. Its
-job is to keep fortificants out of ordinary ingredient-fraction variables and
-to produce reproducible diagnostics for export / benchmark reporting.
+This module keeps fortificants out of ordinary ingredient-fraction variables and
+provides conservative contribution estimates only when the mass→nutrient mapping
+is chemically explicit enough to be reproducible.
 """
 
 from __future__ import annotations
@@ -52,6 +52,27 @@ NUTRIENT_HINTS: dict[str, tuple[str, ...]] = {
     "folate_mcg": ("folic acid",),
 }
 
+CODE_CONTRIBUTION_FACTORS: dict[str, dict[str, float]] = {
+    # FNDDS "X as ingredient" codes are represented as nutrient mass per 100 g
+    # recipe input. These are safe direct conversions from g to label units.
+    "999301": {"calcium_mg": 1000.0},
+    "999303": {"iron_mg": 1000.0},
+    "999291": {"fiber_g": 1.0},
+}
+
+NAME_CONTRIBUTION_FACTORS: tuple[tuple[re.Pattern[str], dict[str, float], str], ...] = (
+    (
+        re.compile(r"\breduced\s+iron\b", re.IGNORECASE),
+        {"iron_mg": 1000.0},
+        "elemental_name_match",
+    ),
+    (
+        re.compile(r"\bcalcium\s+carbonate\b", re.IGNORECASE),
+        {"calcium_mg": 400.4},
+        "stoichiometric_estimate",
+    ),
+)
+
 
 @dataclass(frozen=True)
 class FortificationIngredient:
@@ -62,6 +83,8 @@ class FortificationIngredient:
     weight_g: float
     weight_fraction_of_recipe: float
     suspected_nutrients: tuple[str, ...]
+    estimated_contributions: dict[str, float]
+    contribution_basis: str | None
     reason: str
 
     def as_dict(self) -> dict[str, Any]:
@@ -71,6 +94,8 @@ class FortificationIngredient:
             "weight_g": self.weight_g,
             "weight_fraction_of_recipe": self.weight_fraction_of_recipe,
             "suspected_nutrients": list(self.suspected_nutrients),
+            "estimated_contributions": self.estimated_contributions,
+            "contribution_basis": self.contribution_basis,
             "reason": self.reason,
         }
 
@@ -102,14 +127,66 @@ def build_fortification_ingredient(
     weight = float(ingredient.get("weight_g", 0.0) or 0.0)
     frac = weight / total_weight_g if total_weight_g > 0 else 0.0
     reason = "fortificant_code" if code in FORTIFICANT_CODES else "fortificant_name"
+    estimated_contributions, contribution_basis = estimate_contribution(
+        code,
+        name,
+        weight,
+    )
     return FortificationIngredient(
         name=name,
         code=code,
         weight_g=weight,
         weight_fraction_of_recipe=frac,
         suspected_nutrients=suspected_nutrients_for_fortificant(name),
+        estimated_contributions=estimated_contributions,
+        contribution_basis=contribution_basis,
         reason=reason,
     )
+
+
+def estimate_contribution(
+    code: str,
+    name: str,
+    weight_g: float,
+) -> tuple[dict[str, float], str | None]:
+    """Estimate fortificant nutrient contribution per 100 g product.
+
+    The estimate is intentionally conservative. It is only returned when the
+    ingredient represents an elemental nutrient mass or a simple compound with a
+    well-defined stoichiometric conversion. Potency-dependent vitamin premixes
+    return no numeric estimate.
+    """
+    if code in CODE_CONTRIBUTION_FACTORS:
+        return (
+            {
+                nutrient_id: weight_g * factor
+                for nutrient_id, factor in CODE_CONTRIBUTION_FACTORS[code].items()
+            },
+            "fndds_direct_nutrient_mass",
+        )
+
+    for pattern, factors, basis in NAME_CONTRIBUTION_FACTORS:
+        if pattern.search(name):
+            return (
+                {
+                    nutrient_id: weight_g * factor
+                    for nutrient_id, factor in factors.items()
+                },
+                basis,
+            )
+
+    return {}, None
+
+
+def aggregate_contributions(
+    fortificants: list[FortificationIngredient],
+) -> dict[str, float]:
+    """Aggregate estimated fortificant contributions by nutrient ID."""
+    totals: dict[str, float] = {}
+    for fortificant in fortificants:
+        for nutrient_id, amount in fortificant.estimated_contributions.items():
+            totals[nutrient_id] = totals.get(nutrient_id, 0.0) + amount
+    return totals
 
 
 def classify_export_failure(
@@ -141,10 +218,12 @@ def fortification_diagnostics(
         for fortificant in fortificants
         for nutrient in fortificant.suspected_nutrients
     })
+    estimated = aggregate_contributions(fortificants)
     return {
         "has_fortification": bool(fortificants),
         "failure_category": failure_category,
         "fortificant_ingredients": [item.as_dict() for item in fortificants],
         "suspected_fortified_nutrients": suspected,
+        "estimated_contributions": estimated,
         "skipped_nutrients": skipped_nutrients,
     }

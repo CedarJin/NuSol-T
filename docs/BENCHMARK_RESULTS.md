@@ -1,6 +1,6 @@
 # FNDDS Benchmark 实验结果
 
-> 2026-07-15 | 分支: `refactor/yaml-solver-framework` | 266 tests passing
+> 2026-07-15 | 分支: `refactor/yaml-solver-framework` | 268 tests passing
 
 本文记录 FNDDS workflow 的扩展 benchmark 结果。需要和 `docs/CURRENT_STATUS.md` 区分：
 
@@ -208,7 +208,7 @@ G3 = G2 因为 `label_fit` 只是配置标记：nutrient observations 的编译�
 | Point solver | ScipySLSQP (slack-based QP, 10x retry) |
 | Bounds solver | HiGHS LP (hard constraints only) |
 | kJ→kcal | Atwater 4-4-9 自动检测修正 |
-| Fortificant | code/name 规则识别；从普通 ingredient fraction 求解中分离；输出 `fortification` diagnostics；受 fortification 主导的 nutrient 结构化记录为 skipped |
+| Fortificant | code/name 规则识别；从普通 ingredient fraction 求解中分离；对 calcium/iron/fiber 等可量化贡献做 observation adjustment；输出 `fortification` diagnostics；无法定量的 nutrient 结构化记录为 skipped/suspected |
 
 ---
 
@@ -219,7 +219,7 @@ G3 = G2 因为 `label_fit` 只是配置标记：nutrient observations 的编译�
 | 失败类型 | 当前表现 | 建议提升办法 | 验收指标 |
 |----------|----------|--------------|----------|
 | Fortificant 导致 pseudo multi-ingredient | Yogurt、orange juice、shredded wheat 等去 fortificant 后只剩一个 base food | 已增加 `single_base_with_fortification` 分类；fortificant 进入 `fortification` diagnostics，不进入普通 ingredient fraction 求解 | 这 6 类可被单独统计；仍需重跑 full benchmark 验证 |
-| Fortified cereal | 强化营养素解释了主要标签差异，删除 fortificant 后信息不足 | 已完成 fortificant 分离和 skipped nutrient diagnostics；下一步建立 fortificant→nutrient contribution 表，把 calcium、vitamin D、iron、B vitamins 等作为可解释 additive profile | cereal export 成功率提升需等 additive profile 接入后验证 |
+| Fortified cereal | 强化营养素解释了主要标签差异，删除 fortificant 后信息不足 | 已完成 fortificant 分离、skipped nutrient diagnostics，以及 calcium/iron/fiber 等可量化 contribution adjustment；下一步处理 vitamin D、B vitamins 等 potency 依赖 profile | cereal export 成功率提升需重跑 full benchmark 验证 |
 | 同一食材品种/成熟度 | Banana/tomato/onion 变体营养共线 | 在 FNDDS export 阶段做 canonical ingredient collapse，把同一 base ingredient 的品种/成熟度合并 | 变体案例不再进入不可辨识多变量求解 |
 | SR Legacy 匹配失败 | 部分 ingredient 找不到 profile 或 profile 不合适 | 增加 mapper failure taxonomy：missing profile、ambiguous profile、low-confidence fuzzy match、fortificant-only；优先接 Foundation/FNDDS code profile | export failure 可解释率达到 100%，并能按类别回归 |
 | 手工修复不可复现 | 当前 16 个 export 恢复来自人工过滤 | 把人工规则沉淀成 YAML export policy 和 regression fixture，而不是只保留结果数字 | 16 个恢复样本可由脚本自动复现 |
@@ -270,8 +270,8 @@ export_diagnostics:
 ### 5.3 优先级建议
 
 1. **先做 failure taxonomy 和 diagnostics**：不要只追求成功率，先让每个失败有稳定分类。
-2. **把 post-hoc 修复变成自动 policy**：`max_iterations=2000` retry 和 fortificant 分离/diagnostics 已有基础版。
-3. **再做 fortificant contribution metadata**：这是 cereal 和 fortified food 的主要瓶颈。
+2. **把 post-hoc 修复变成自动 policy**：`max_iterations=2000` retry、fortificant 分离/diagnostics、可量化 contribution adjustment 已有基础版。
+3. **再扩展 fortificant contribution metadata**：vitamin D、B vitamins 和 premix potency 仍是 cereal 和 fortified food 的主要瓶颈。
 4. **最后引入 calibrated weak priors**：prior 只能作为可解释的软偏好，不能用来掩盖 profile mismatch 或不可辨识。
 
 ---
