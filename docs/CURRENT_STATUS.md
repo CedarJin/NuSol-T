@@ -1,28 +1,44 @@
 # NuSol-T 项目进度
 
-> 2026-07-15 | 分支: `refactor/yaml-solver-framework` | 268 tests passing | GitHub: [CedarJin/NuSol-T](https://github.com/CedarJin/NuSol-T)
+> 2026-07-16 | 分支: `refactor/yaml-solver-framework` | 268 tests passing | GitHub: [CedarJin/NuSol-T](https://github.com/CedarJin/NuSol-T)
 
 ---
 
 ## 一、核心成果
 
-NuSol-T 已完成从 legacy 代码到 YAML 驱动、科学可验证的重构。在 FNDDS 全量 3,734 个多配料配方上验证：
+NuSol-T 已完成从 legacy 代码到 YAML 驱动、科学可验证的重构。
 
-**仅凭 Nutrition Facts 标签 + 配料名称，反推配料比例，3,734 个配方中 3,717 个成功（99.5%），中位误差 1.74 pp。**
+### 三年跨版本 FNDDS 验证
 
-### 修复历程
+| FNDDS 版本 | 配方数 | 成功率 | MAE 中位 |
+|-----------|--------|--------|----------|
+| 2021-10-28 | 4,715 | 99.5% | 1.7 pp |
+| 2022-10-28 | 3,823 | 99.3% | 1.8 pp |
+| 2024-10-31 | 3,734 | 99.8%* | 1.74 pp |
+| **合计** | **12,272** | **~99.5%** | **1.7-1.8 pp** |
+
+*2024 是完整修复后数据（含自动 weight fallback）。
+
+### 修复 pipeline
 
 ```
-初始自动 pipeline:  3,542/3,734 (94.9%)   MAE 中位 1.74 pp
-+ max_iter 500→2000:   +147 修复 solve 失败
-+ 手动 YAML 过滤 fortificant: +16 修复 export 失败  
-+ yield factor 检测:        +21 修复 raw→cooked mismatch
+初始自动 pipeline (2024):  3,542/3,734 (94.9%)    MAE 中位 1.74 pp
++ max_iter 500→2000:         +147 solve 失败
++ 手动 YAML fortificant:      +16 export 失败
++ yield factor (raw→cooked): +21 之前不可解的
++ weight fallback (w=10→1): 全 8 个剩下的 solve 失败
 ─────────────────────────────────────────────────
-最终:                 3,717/3,734 (99.5%)
-不可求解:                 17 (0.5%)
+最终可达:                   ~3,725/3,734 (99.8%)
+仅剩 9 个结构性不可能（单配料/同品种混合）
 ```
 
-17 个不可求解中：9 个是结构性不可能（单配料或同品种混合，branded food 中不存在），8 个是硬骨头（贝类/器官肉/复杂组合）。
+### Ingredient Mapping 质量
+
+| 映射方式 | 命中率 | 置信度 | 适用场景 |
+|---------|--------|--------|---------|
+| Code-assisted (L1-L3) | 99.9% | 96% | FNDDS benchmark |
+| Name-only (L4) | ~90% | 95 | Branded food 模拟 |
+| 短名→标准名 | **未实现** | — | **Phase 5 目标** |
 
 ---
 
@@ -138,46 +154,51 @@ NuSol-T 已完成从 legacy 代码到 YAML 驱动、科学可验证的重构。�
 
 ---
 
-## 六、待完成
+## 六、Phase 进度
 
-### 近期
+| Phase | 内容 | 状态 |
+|-------|------|------|
+| **Phase 0** | 基础框架：Schema、YAML 配置、NutrientRegistry | ✅ |
+| **Phase 1** | FNDDS 数据适配 + Forward Calculation | ✅ |
+| **Phase 2** | Inverse Solver：约束系统 P0-P2、Point/Bound Solver | ✅ |
+| **Phase 3** | FNDDS Inverse Validation（3 年跨版本，12,272 配方） | ✅ |
+| **Phase 4** | Ablation Study（G0-G2）+ Sensitivity Analysis | ✅ |
+| **Phase 5** | **Branded Food Adapter：配料解析器、映射器** | ⬜ **← 下一步** |
+| **Phase 6** | Branded Food Application：pipeline、报告 | ⬜ |
+| **Phase 7** | 文档、论文 | 部分完成 |
 
-| # | 任务 | 优先级 |
-|---|------|--------|
-| 1 | 扩展 Fortificant contribution table / additive solver（vitamin D、B vitamins 等 potency 依赖营养素仍未定量） | 中 |
-| 2 | SLSQP 收敛改进或备选 point solver（IPOPT） | 低 |
-| 3 | Foundation Foods 数据集成（替换 SR Legacy 中质量较低的条目） | 中 |
-| 4 | Prior calibration、ablation 和 sensitivity | 中 |
+### Phase 5 核心挑战
 
-### Phase 5-6: Branded Food 应用
+当前 FNDDS 配料名已是 USDA 标准名（code-assisted 99.9% 匹配）。Branded food 标签用短名：
 
-| # | 任务 | 说明 |
-|---|------|------|
-| 5 | **IngredientParser** | 标签配料文本 `"WATER, SUGAR, OATS, CONTAINS 2% OR LESS OF: SALT"` → 结构化 IngredientTree |
-| 6 | **IngredientMapper** | 标签短名 `"OATS"` → USDA 标准名 `"Cereals, oats, regular and quick, not fortified, dry"` → SR Legacy 营养成分 |
-| 7 | Branded Food adapter | 连接 USDA Branded Food 数据库 |
-| 8 | Branded Food end-to-end | 标签文本 → parse → map → solve → TrustReport |
+```
+"OATS" → 需映射到 → "Cereals, oats, regular and quick, not fortified, dry"
+"ENRICHED FLOUR" → "Flour, wheat, all-purpose, enriched, bleached"
+```
 
-### 远期
-
-| # | 任务 |
-|---|------|
-| 9 | 200-recipe FNDDS ablation study (G0-G7 消融实验) |
-| 10 | TrustReport + TrustGrade (A/B/C/D) |
-| 11 | 论文 |
+纯名称搜索当前 ~10% 找不到匹配。Phase 5 需建立短名→标准名的映射层。
 
 ---
 
-## 七、推荐的 Next Step
+## 七、待完成
 
-**Phase 5: IngredientMapper + IngredientParser**
+| # | 任务 | 优先级 |
+|---|------|--------|
+| 1 | **IngredientParser** — 标签文本→IngredientTree | **P0 (Phase 5)** |
+| 2 | **IngredientMapper** — 短名→USDA 标准名 | **P0 (Phase 5)** |
+| 3 | Fortificant contribution table / additive solver | 中 |
+| 4 | IPOPT backend（备选 point solver） | 低 |
+| 5 | Prior calibration + ablation | 中 |
+| 6 | Branded Food end-to-end pipeline | Phase 6 |
+| 7 | 论文 | Phase 7 |
 
-Branded food 应用最关键的一步。当前 FNDDS 验证中配料名已是 USDA 标准名（100% 匹配），但真实品牌食品标签是短名（`"OATS"`、`"ENRICHED FLOUR"`）。需要：
+---
 
-1. **IngredientParser**：解析标签配料文本 → IngredientTree（处理括号嵌套、逗号分隔、"CONTAINS 2% OR LESS OF" 标记）
-2. **IngredientMapper**：标签短名 → USDA 标准名映射。这是 Phase 5 的核心挑战——名称匹配质量直接决定后续求解精度
+## 八、推荐的 Next Step
 
-两个模块完成后，品牌食品的端到端流程就通了。FNDDS 验证已经证明只要配料映射正确，求解器能以 2.5pp 中位误差反推比例。
+**Phase 5: IngredientParser + IngredientMapper**
+
+FNDDS 验证已证明：只要配料映射正确，求解器能以 1.7-1.8pp 中位误差反推比例（12,272 配方跨 3 年验证）。现在需要补上 branded food 的关键一环——把标签短名映射到 USDA 标准名。
 
 ---
 
