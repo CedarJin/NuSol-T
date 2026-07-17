@@ -290,7 +290,7 @@ def export_recipe(fdc_id: int, fndds, sr, output_dir: Path) -> dict | None:
         raw_fracs = {ing["id"]: ing["weight_g"] / kept_wt for ing in ordered}
     else:
         raw_fracs = {ing["id"]: 1.0 / len(ordered) for ing in ordered}
-    yield_factor = _detect_yield_factor(raw_fracs, ing_energy, label_energy)
+    yield_factor = _detect_yield_factor(raw_fracs, ing_energy, label_energy) or 1.0
     if yield_factor > 1.0:
         warnings.append(
             f"Yield factor {yield_factor:.3f} detected: raw→cooked moisture loss"
